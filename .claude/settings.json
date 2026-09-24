@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//Users/adfarrashid/packages/**)",
-      "Read(//Users/adfarrashid/**)",
-      "Read(//Users/adfarrashid/node_modules/**)"
-    ]
-  }
-}
