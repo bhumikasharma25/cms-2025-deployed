@@ -74,7 +74,7 @@ Lead for the entire Leapx project across **Noida, Lucknow, and Pune**.
 ### Students
 
 - **Bhumika Sharma** — Backend
-- **Mohammad Fahad** — Backend
+- **Mohammad Fahad** — Frontend
 - **MD Salaih Hasan** — Frontend
 - **Khushi Shah** — UI initially, later Frontend
 - **Ankit Bhalke** — Backend
