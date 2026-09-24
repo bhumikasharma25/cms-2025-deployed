@@ -77,7 +77,7 @@ Lead for the entire Leapx project across **Noida, Lucknow, and Pune**.
 - **Mohammad Fahad** — Frontend
 - **MD Salaih Hasan** — Frontend
 - **Khushi Shah** — UI initially, later Frontend
-- **Ankit Bhalke** — Backend
+- **Ankit Bhalke** — Frontend
 - **Arpita Awasthi** — UI initially, later Backend
 
 ## Branch Naming
