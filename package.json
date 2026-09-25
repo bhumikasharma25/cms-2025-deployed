@@ -15,6 +15,12 @@
   "engines": {
     "node": ">=24.20.0"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "10.9.2"
+    }
+  }>>> fe-03-05-layout-login
   "workspaces": [
     "apps/*",
     "packages/*"

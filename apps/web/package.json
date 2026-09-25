@@ -12,7 +12,10 @@
   "dependencies": {
     "@repo/ui": "*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+<<<<<<< HEAD
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
+>>>>>>> fe-03-05-layout-login
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
