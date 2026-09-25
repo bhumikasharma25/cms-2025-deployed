@@ -1,4 +1,4 @@
 import { createRoot } from "react-dom/client";
-import BackendTest from "./BackendTest";
+import App from "./App";
 
-createRoot(document.getElementById("app")!).render(<BackendTest />);
+createRoot(document.getElementById("app")!).render(<App />);
