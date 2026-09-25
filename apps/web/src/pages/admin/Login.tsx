@@ -47,7 +47,8 @@ export default function Login() {
         email.trim().toLowerCase() === DEMO_EMAIL &&
         password === DEMO_PASSWORD
       ) {
-        navigate("/admin");
+        localStorage.setItem("isAuthenticated", "true");
+        navigate("/admin/dashboard");
         return;
       }
       setFormError("Email or password is incorrect. Please try again.");
