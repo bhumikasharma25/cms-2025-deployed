@@ -1,4 +1,4 @@
-export const MainContent = () => {
+export const MainContent = ({ children }: { children: React.ReactNode }) => {
   return (
     <main style={{
       marginLeft: "250px",
