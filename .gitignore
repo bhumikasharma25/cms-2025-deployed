@@ -9,3 +9,6 @@ dist-ssr
 .cache
 server/dist
 public/dist
+
+# Local admin seed script
+apps/backend/src/scripts/createAdmin.ts
