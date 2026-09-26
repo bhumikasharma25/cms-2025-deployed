@@ -111,7 +111,7 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <p>© 2026 Publiq Publishing. Decoupled, headless, forever open source.</p>
+          <p>© 2026 Blogify. All rights reserved. Made with love for developers.</p>
           <div className="socials">
             <a
               href="https://twitter.com"

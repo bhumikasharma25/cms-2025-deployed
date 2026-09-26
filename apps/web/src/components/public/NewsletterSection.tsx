@@ -27,7 +27,7 @@ export default function NewsletterSection() {
     <section className="newsletter" id="newsletter">
       <div className="container">
         <div className="newsletter-card">
-          <h2>Stay Updated with Publiq</h2>
+          <h2>Stay Updated with Blogify</h2>
           <p>
             Join 12,000+ engineers subscribing to our high-scale performance
             engineering digest.

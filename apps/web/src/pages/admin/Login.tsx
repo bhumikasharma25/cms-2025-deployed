@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { ApiError, AUTH_KEY, authApi, TOKEN_KEY } from "../../services/api";
 import "../../styles/login.css";
 
 const DEMO_EMAIL = "admin@blogify.com";
@@ -31,7 +32,7 @@ export default function Login() {
     return next;
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
 
@@ -41,19 +42,38 @@ export default function Login() {
     if (Object.keys(next).length > 0) return;
 
     setLoading(true);
-    window.setTimeout(() => {
-      setLoading(false);
+
+    try {
+      const result = await authApi.login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      localStorage.setItem(TOKEN_KEY, result.token);
+      localStorage.setItem(AUTH_KEY, "true");
+      navigate("/admin/dashboard");
+    } catch (err) {
+      // Fall back to the demo credentials so the panel stays usable
+      // while the backend auth route is not deployed yet.
       if (
         email.trim().toLowerCase() === DEMO_EMAIL &&
         password === DEMO_PASSWORD
       ) {
-        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem(AUTH_KEY, "true");
         navigate("/admin/dashboard");
         return;
       }
-      setFormError("Email or password is incorrect. Please try again.");
+
+      const message =
+        err instanceof ApiError && err.status === 401
+          ? "Email or password is incorrect. Please try again."
+          : "Unable to reach the server. Please try again.";
+
+      setFormError(message);
       setErrors({ password: "Enter a valid password" });
-    }, 1200);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

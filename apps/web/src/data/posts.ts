@@ -22,7 +22,7 @@ export const featuredPost: Blog = {
     "Start learning how modern platforms ship faster with decoupled backends and edge rendering.",
   content:
     "<p>Modern platforms ship faster by decoupling the backend from the frontend.</p><h2>Why headless wins</h2><p>Content moves behind an API, so the same data powers every surface.</p>",
-  thumbnail: thumb("publiq-hero-2025"),
+  thumbnail: thumb("blogify-hero-2025"),
   category: "Technology",
   tags: ["Web Development", "Edge", "Generative"],
   status: "published",

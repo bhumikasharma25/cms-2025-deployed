@@ -1,215 +1,463 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminLayout } from "../../components/admin/admin-layout";
-import { useNavigate } from "react-router-dom";
+import ConfirmModal from "../../components/admin/ConfirmModal";
+import { useToast } from "../../components/admin/Toast";
+import {
+  IconArchive,
+  IconCheck,
+  IconClock,
+  IconEdit,
+  IconFolder,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+} from "../../components/admin/icons";
+
+type CategoryStatus = "active" | "draft" | "archived";
 
 interface Category {
   id: string;
   name: string;
   slug: string;
+  description: string;
+  posts: number;
+  status: CategoryStatus;
 }
 
-interface CategoryForm {
-  name: string;
-  slug: string;
-}
+const seed: Category[] = [
+  {
+    id: "1",
+    name: "Design Systems",
+    slug: "design-systems",
+    description:
+      "Parent category for reusable design patterns, component documentation, and layout standards.",
+    posts: 128,
+    status: "active",
+  },
+  {
+    id: "2",
+    name: "Component Library",
+    slug: "component-library",
+    description: "Child category documenting every shared component.",
+    posts: 64,
+    status: "active",
+  },
+  {
+    id: "3",
+    name: "Layout Patterns",
+    slug: "layout-patterns",
+    description: "Child category for grid, flexbox and spacing conventions.",
+    posts: 31,
+    status: "active",
+  },
+  {
+    id: "4",
+    name: "Performance",
+    slug: "performance",
+    description:
+      "Parent category for rendering, bundling and runtime optimisation write-ups.",
+    posts: 87,
+    status: "active",
+  },
+  {
+    id: "5",
+    name: "Security",
+    slug: "security",
+    description: "Child category for auth, OWASP and dependency hygiene.",
+    posts: 29,
+    status: "draft",
+  },
+];
 
-const CategoriesPage = () => {
-  const [categories, setCategories] = useState<Category[]>([
-    { id: "1", name: "Technology", slug: "technology" },
-    { id: "2", name: "Design", slug: "design" },
-    { id: "3", name: "Development", slug: "development" },
-    { id: "4", name: "Lifestyle", slug: "lifestyle" },
-    { id: "5", name: "Business", slug: "business" },
-    { id: "6", name: "AI & ML", slug: "ai-ml" },
-    { id: "7", name: "DevOps", slug: "devops" },
-    { id: "8", name: "Product", slug: "product" },
-  ]);
+const statusLabel: Record<CategoryStatus, string> = {
+  active: "Active",
+  draft: "Draft",
+  archived: "Archived",
+};
 
-  const [form, setForm] = useState<CategoryForm>({
-    name: "",
-    slug: "",
-  });
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
-  const navigate = useNavigate();
+export default function Categories() {
+  const [categories, setCategories] = useState<Category[]>(seed);
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState(seed[0].id);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState({ name: "", description: "" });
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  const { show, node } = useToast();
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, name: e.target.value });
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q
+      ? categories.filter((c) => c.name.toLowerCase().includes(q))
+      : categories;
+  }, [categories, query]);
+
+  const selected = categories.find((c) => c.id === selectedId) ?? categories[0];
+
+  const stats = [
+    {
+      label: "Total categories",
+      value: categories.length,
+      Icon: IconFolder,
+    },
+    {
+      label: "Active categories",
+      value: categories.filter((c) => c.status === "active").length,
+      Icon: IconCheck,
+    },
+    {
+      label: "Draft categories",
+      value: categories.filter((c) => c.status === "draft").length,
+      Icon: IconClock,
+    },
+    {
+      label: "Archived categories",
+      value: categories.filter((c) => c.status === "archived").length,
+      Icon: IconArchive,
+    },
+  ];
+
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft({ name: "", description: "" });
+    setShowForm(true);
   };
 
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, slug: e.target.value });
+  const openEdit = (category: Category) => {
+    setEditingId(category.id);
+    setDraft({ name: category.name, description: category.description });
+    setShowForm(true);
   };
 
-  const handleAddCategory = () => {
-    if (!form.name.trim() || !form.slug.trim()) return;
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      name: form.name,
-      slug: form.slug,
-    };
-    setCategories([...categories, newCategory]);
-    setForm({ name: "", slug: "" });
-  };
-
-  const handleDeleteCategory = (id: string) => {
-    if (confirm("Are you sure you want to delete this category?")) {
-      setCategories(categories.filter((cat) => cat.id !== id));
+  const saveCategory = () => {
+    const name = draft.name.trim();
+    if (name.length < 2) {
+      show("Category name must be at least 2 characters.", "error");
+      return;
     }
+
+    if (editingId) {
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === editingId
+            ? { ...c, name, slug: slugify(name), description: draft.description.trim() }
+            : c
+        )
+      );
+      show("Category updated successfully.");
+    } else {
+      const created: Category = {
+        id: `c${Date.now()}`,
+        name,
+        slug: slugify(name),
+        description: draft.description.trim() || "No description yet.",
+        posts: 0,
+        status: "draft",
+      };
+      setCategories((prev) => [created, ...prev]);
+      setSelectedId(created.id);
+      show("Category created successfully.");
+    }
+
+    setShowForm(false);
+    setDraft({ name: "", description: "" });
+    setEditingId(null);
   };
 
-  const navigateToBlogs = () => {
-    navigate("/admin/blogs");
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const next = categories.filter((c) => c.id !== pendingDelete.id);
+    setCategories(next);
+    if (selectedId === pendingDelete.id) {
+      setSelectedId(next[0]?.id ?? "");
+    }
+    show("Category deleted successfully.");
+    setPendingDelete(null);
   };
 
   return (
     <AdminLayout>
-        <div style={{
-          padding: "24px",
-          maxWidth: "1200px",
-          width: "100%"
-        }}>
-          <h2 style={{ color: "#1e293b", marginBottom: "24px" }}>Categories</h2>
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Categories</h1>
+          <p className="page-sub">Manage category hierarchy, visibility and post assignment.</p>
+        </div>
+        <div className="page-actions">
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <IconPlus size={16} />
+            Add Category
+          </button>
+        </div>
+      </div>
 
-          <div style={{ marginBottom: "32px" }}>
-            <h3 style={{ color: "#3f3f46", marginBottom: "16px" }}>Add New Category</h3>
-            <form
-              style={{ maxWidth: "400px" }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleAddCategory();
-              }}
-            >
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{
-                  display: "block", fontWeight: "600", color: "#1e293b", marginBottom: "8px"
-                }}>Category Name</label>
-                <input
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "4px",
-                    fontFamily: "inherit",
-                    fontSize: "14px",
-                  }}
-                  placeholder="Category name"
-                  value={form.name}
-                  onChange={handleNameChange}
-                  required
-                />
+      <div className="stat-grid">
+        {stats.map(({ label, value, Icon }) => (
+          <div className="stat-card" key={label}>
+            <div>
+              <div className="stat-label">{label}</div>
+              <div className="stat-value">{value}</div>
+            </div>
+            <span className="stat-icon">
+              <Icon size={16} />
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="split">
+        <section className="card">
+          <div className="card-head">
+            <div>
+              <div className="card-title">All Categories</div>
+              <div className="card-desc">
+                {visible.length} of {categories.length} categories
               </div>
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{
-                  display: "block", fontWeight: "600", color: "#1e293b", marginBottom: "8px"
-                }}>Slug</label>
-                <input
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "4px",
-                    fontFamily: "inherit",
-                    fontSize: "14px",
-                  }}
-                  placeholder="technology"
-                  value={form.slug}
-                  onChange={handleSlugChange}
-                  required
-                />
+            </div>
+            <div className="search-box">
+              <IconSearch size={15} />
+              <input
+                type="search"
+                placeholder="Search categories..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search categories"
+              />
+            </div>
+          </div>
+
+          {visible.length > 0 ? (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Posts</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((category) => (
+                    <tr
+                      key={category.id}
+                      className={category.id === selected?.id ? "selected" : ""}
+                      onClick={() => setSelectedId(category.id)}
+                    >
+                      <td>
+                        <div className="cell-media">
+                          <span className="tile">
+                            <IconFolder size={15} />
+                          </span>
+                          <div>
+                            <div className="cell-strong">{category.name}</div>
+                            <span className="cell-sub">
+                              {category.posts} posts
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{category.posts}</td>
+                      <td>
+                        <span className={`badge badge-${category.status}`}>
+                          {statusLabel[category.status]}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={`Edit ${category.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(category);
+                            }}
+                          >
+                            <IconEdit size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            aria-label={`Delete ${category.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingDelete(category);
+                            }}
+                          >
+                            <IconTrash size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No categories found.</h3>
+              <p>Try a different search, or add a new category.</p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={openCreate}
+              >
+                <IconPlus size={16} />
+                Add Category
+              </button>
+            </div>
+          )}
+        </section>
+
+        <aside className="card">
+          <div className="card-head">
+            <div>
+              <div className="card-title">Category Details</div>
+              <div className="card-desc">Currently selected node</div>
+            </div>
+            {selected && (
+              <span className={`badge badge-${selected.status}`}>
+                {statusLabel[selected.status]}
+              </span>
+            )}
+          </div>
+
+          {selected ? (
+            <>
+              <div className="detail-kv">
+                <div className="detail-key">Category name</div>
+                <div className="detail-val">{selected.name}</div>
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div className="detail-kv">
+                <div className="detail-key">Slug</div>
+                <div className="detail-val">{selected.slug}</div>
+              </div>
+              <div className="detail-kv">
+                <div className="detail-key">Posts</div>
+                <div className="detail-val">{selected.posts}</div>
+              </div>
+              <div className="detail-kv">
+                <div className="detail-key">Description</div>
+                <div className="detail-val">{selected.description}</div>
+              </div>
+              <div className="detail-actions">
                 <button
-                  type="submit"
-                  style={{
-                    background: "#3b82f6",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: "6px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
+                  type="button"
+                  className="btn btn-outline btn-block"
+                  onClick={() => openEdit(selected)}
                 >
-                  Add Category
+                  <IconEdit size={15} />
+                  Edit Category
                 </button>
                 <button
                   type="button"
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#64748b",
-                    fontSize: "14px",
-                    cursor: "pointer",
+                  className="btn btn-primary btn-block"
+                  onClick={() => {
+                    setCategories((prev) =>
+                      prev.map((c) =>
+                        c.id === selected.id
+                          ? {
+                              ...c,
+                              status: c.status === "active" ? "draft" : "active",
+                            }
+                          : c
+                      )
+                    );
+                    show("Category status updated.");
                   }}
-                  onClick={navigateToBlogs}
                 >
-                  Cancel
+                  {selected.status === "active" ? "Move to Draft" : "Publish Changes"}
                 </button>
               </div>
-            </form>
-          </div>
+            </>
+          ) : (
+            <p className="card-desc">Select a category to see its details.</p>
+          )}
+        </aside>
+      </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              marginTop: "24px",
-              fontSize: "14px",
-              minWidth: "600px"
-            }}>
-              <thead>
-                <tr style={{
-                  borderBottom: "1px solid #e5e7eb",
-                  padding: "12px 0",
-                }}>
-                  <th style={{ padding: "8px", textAlign: "left" }}><span style={{ color: "#64748b" }}>Name</span></th>
-                  <th style={{ padding: "8px", textAlign: "left" }}><span style={{ color: "#64748b" }}>Slug</span></th>
-                  <th style={{ padding: "8px", textAlign: "left" }}><span style={{ color: "#64748b" }}>Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.map((cat) => (
-                  <tr key={cat.id} style={{
-                    borderBottom: "1px solid #e5e7eb",
-                    padding: "12px 0",
-                  }}>
-                    <td style={{ padding: "8x" }}><span style={{ color: "#1e293b" }}>{cat.name}</span></td>
-                    <td style={{ padding: "8px" }}><span style={{ color: "#64748b" }}>{cat.slug}</span></td>
-                    <td style={{ padding: "8px" }}>
-                      <button
-                        style={{
-                          marginRight: "8px",
-                          background: "transparent",
-                          border: "none",
-                          color: "#3b82f6",
-                          cursor: "pointer",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "#ef4444",
-                          cursor: "pointer",
-                          fontSize: "12px",
-                        }}
-                        onClick={() => handleDeleteCategory(cat.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {showForm && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={editingId ? "Edit category" : "Add category"}
+          onClick={() => setShowForm(false)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">
+              {editingId ? "Edit Category" : "Add Category"}
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <div className="field">
+                <label className="label" htmlFor="cat-name">
+                  Category name
+                </label>
+                <input
+                  id="cat-name"
+                  className="input"
+                  value={draft.name}
+                  placeholder="e.g. Design Systems"
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, name: e.target.value }))
+                  }
+                  autoFocus
+                />
+                <p className="hint">
+                  Slug: {slugify(draft.name) || "your-category-slug"}
+                </p>
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="cat-desc">
+                  Description
+                </label>
+                <textarea
+                  id="cat-desc"
+                  className="textarea"
+                  value={draft.description}
+                  placeholder="What belongs in this category?"
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, description: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowForm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={saveCategory}
+              >
+                {editingId ? "Save Changes" : "Create Category"}
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title="Delete this category?"
+        message={`"${pendingDelete?.name}" will be removed. Posts in this category will need to be reassigned.`}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      {node}
     </AdminLayout>
   );
-};
-
-export default CategoriesPage;
+}
