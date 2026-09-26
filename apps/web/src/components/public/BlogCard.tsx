@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
-import type { Post } from "../../data/posts";
+import type { Blog } from "../../types/blog";
+import {
+  authorColor,
+  authorInitials,
+  formatDate,
+  labelTone,
+  readingTime,
+} from "../../utils/blog";
 
-const labelClass = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
-
-export default function BlogCard({ post }: { post: Post }) {
+export default function BlogCard({ post }: { post: Blog }) {
   return (
     <article className="post-card">
       <Link
@@ -13,7 +18,7 @@ export default function BlogCard({ post }: { post: Post }) {
         tabIndex={-1}
       >
         <img
-          src={`https://picsum.photos/seed/${post.imageSeed}/640/400`}
+          src={post.thumbnail}
           alt=""
           loading="lazy"
           onError={(e) => {
@@ -22,26 +27,30 @@ export default function BlogCard({ post }: { post: Post }) {
         />
       </Link>
       <div className="post-body">
-        <span className={`post-label ${labelClass(post.label)}`}>
-          {post.label}
+        <span className={`post-label c${labelTone(post.category)}`}>
+          {post.category}
         </span>
         <h3 className="post-title">
           <Link to={`/blog/${post.slug}`}>{post.title}</Link>
         </h3>
-        <p className="post-excerpt">{post.excerpt}</p>
+        <p className="post-excerpt">{post.description}</p>
         <div className="post-footer">
           <span
             className="avatar avatar-sm"
-            style={{ background: post.author.color }}
+            style={{ background: authorColor(post.author) }}
             aria-hidden="true"
           >
-            {post.author.initials}
+            {authorInitials(post.author)}
           </span>
-          <span className="meta-name">{post.author.name}</span>
+          <span className="meta-name">{post.author}</span>
           <span className="meta-dot" aria-hidden="true">
             •
           </span>
-          <span className="meta-date">{post.date}</span>
+          <span className="meta-date">{formatDate(post.createdAt)}</span>
+          <span className="meta-dot" aria-hidden="true">
+            •
+          </span>
+          <span className="meta-date">{readingTime(post.content)} min read</span>
         </div>
         <Link className="card-read-more" to={`/blog/${post.slug}`}>
           Read More →

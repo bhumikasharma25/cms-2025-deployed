@@ -402,24 +402,26 @@ input:focus-visible {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   margin-bottom: 8px;
+  color: var(--primary);
 }
 
-.post-label.react {
+/* Tone applied by labelTone() so any category from the API gets a stable colour */
+.post-label.c0 {
   color: #4338ca;
 }
-.post-label.typescript {
+.post-label.c1 {
   color: #1e40af;
 }
-.post-label.ui-design {
+.post-label.c2 {
   color: #7e22ce;
 }
-.post-label.wasm {
+.post-label.c3 {
   color: #0e7490;
 }
-.post-label.devops {
+.post-label.c4 {
   color: #b45309;
 }
-.post-label.css {
+.post-label.c5 {
   color: #be123c;
 }
 

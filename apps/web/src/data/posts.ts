@@ -1,29 +1,6 @@
-export interface Author {
-  name: string;
-  initials: string;
-  color: string;
-}
+import type { Blog } from "../types/blog";
 
-export interface Post {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  label: string;
-  category: string;
-  tags: string[];
-  date: string;
-  imageSeed: string;
-  author: Author;
-}
-
-export const authors: Record<string, Author> = {
-  alex: { name: "Alex Thorne", initials: "AT", color: "#8b2151" },
-  elena: { name: "Elena Rostova", initials: "ER", color: "#4338ca" },
-  marcus: { name: "Marcus Aurel", initials: "MA", color: "#0e7490" },
-  sarahChen: { name: "Sarah Chen", initials: "SC", color: "#b45309" },
-  sarahJenkins: { name: "Sarah Jenkins", initials: "SJ", color: "#7e22ce" },
-};
+const thumb = (seed: string) => `https://picsum.photos/seed/${seed}/1200/700`;
 
 export const categories: string[] = [
   "Technology",
@@ -36,98 +13,119 @@ export const categories: string[] = [
   "Product",
 ];
 
-export const featuredPost: Post = {
+export const featuredPost: Blog = {
   id: "f1",
-  slug: "future-of-web-development-2025",
   title:
     "The Future of Web Development in 2025: Headless, Edge-First, and Generative",
-  excerpt:
+  slug: "future-of-web-development-2025",
+  description:
     "Start learning how modern platforms ship faster with decoupled backends and edge rendering.",
-  label: "Technology",
+  content:
+    "<p>Modern platforms ship faster by decoupling the backend from the frontend.</p><h2>Why headless wins</h2><p>Content moves behind an API, so the same data powers every surface.</p>",
+  thumbnail: thumb("publiq-hero-2025"),
   category: "Technology",
   tags: ["Web Development", "Edge", "Generative"],
-  date: "Sep 28, 2025",
-  imageSeed: "publiq-hero-2025",
-  author: authors.alex,
+  status: "published",
+  createdAt: "2025-09-28T09:00:00Z",
+  updatedAt: "2025-09-28T09:00:00Z",
+  author: "Alex Thorne",
 };
 
-export const posts: Post[] = [
+export const posts: Blog[] = [
   {
     id: "1",
+    title: "Building a Headless CMS with Next.js & GraphQL",
     slug: "building-a-headless-cms",
-    title: "Building a headless CMS with Next.js & GraphQL",
-    excerpt:
+    description:
       "Learn how to architect a completely decoupled content strategy with powerful querying speeds.",
-    label: "React",
+    content:
+      "<p>A headless CMS treats your content as data instead of pages.</p><h2>Components</h2><ul><li>Decoupled backend</li><li>Virtual DOM</li><li>Reusable UI</li></ul>",
+    thumbnail: thumb("headless-cms-nextjs"),
     category: "Development",
     tags: ["React", "Next.js", "GraphQL"],
-    date: "Sep 28, 2025",
-    imageSeed: "headless-cms-nextjs",
-    author: authors.alex,
+    status: "published",
+    createdAt: "2025-09-28T08:30:00Z",
+    updatedAt: "2025-09-28T08:30:00Z",
+    author: "Alex Thorne",
   },
   {
     id: "2",
-    slug: "mastering-typescript-generics",
     title: "Mastering TypeScript: Advanced Generic Types",
-    excerpt:
+    slug: "mastering-typescript-generics",
+    description:
       "Unlock type-safety patterns that scale natively with your complex corporate library APIs.",
-    label: "TypeScript",
+    content:
+      "<p>Generics let one definition serve many types safely.</p><h2>Constraints</h2><p>Use <code>extends</code> to narrow what a type parameter accepts.</p>",
+    thumbnail: thumb("typescript-generics"),
     category: "Development",
     tags: ["TypeScript", "JavaScript"],
-    date: "Sep 25, 2025",
-    imageSeed: "typescript-generics",
-    author: authors.elena,
+    status: "published",
+    createdAt: "2025-09-25T11:15:00Z",
+    updatedAt: "2025-09-25T11:15:00Z",
+    author: "Elena Rostova",
   },
   {
     id: "3",
-    slug: "dark-mode-best-practices",
     title: "Designing for Devs: Dark Mode Best Practices",
-    excerpt:
+    slug: "dark-mode-best-practices",
+    description:
       "Ensure contrast accessibility ratios conform elegantly with standard developer environments.",
-    label: "UI Design",
+    content:
+      "<p>Dark mode is not an inversion, it is a separate palette.</p><h2>Contrast</h2><p>Check contrast ratios against your darkest surface, not white.</p>",
+    thumbnail: thumb("dark-mode-design"),
     category: "Design",
     tags: ["Design", "Accessibility", "Dark Mode"],
-    date: "Sep 24, 2025",
-    imageSeed: "dark-mode-design",
-    author: authors.alex,
+    status: "published",
+    createdAt: "2025-09-24T16:45:00Z",
+    updatedAt: "2025-09-24T16:45:00Z",
+    author: "Alex Thorne",
   },
   {
     id: "4",
-    slug: "webassembly-high-performance",
     title: "WebAssembly: High Performance Web Apps",
-    excerpt:
+    slug: "webassembly-high-performance",
+    description:
       "Explore compilation techniques to scale graphics-heavy client features smoothly.",
-    label: "WASM",
+    content:
+      "<p>WebAssembly compiles ahead of time for predictable performance.</p><h2>Use cases</h2><ul><li>Image and video processing</li><li>Physics simulations</li></ul>",
+    thumbnail: thumb("webassembly-gpu"),
     category: "Technology",
     tags: ["WebAssembly", "Performance"],
-    date: "Sep 22, 2025",
-    imageSeed: "webassembly-gpu",
-    author: authors.marcus,
+    status: "published",
+    createdAt: "2025-09-22T10:20:00Z",
+    updatedAt: "2025-09-22T10:20:00Z",
+    author: "Marcus Aurel",
   },
   {
     id: "5",
-    slug: "deploying-edge-functions-vercel",
     title: "Deploying Edge Functions with Vercel",
-    excerpt:
+    slug: "deploying-edge-functions-vercel",
+    description:
       "Achieve sub-millisecond dynamic routing times natively on modern global serverless nodes.",
-    label: "DevOps",
+    content:
+      "<p>Edge functions run close to your visitors.</p><h2>Limits</h2><p>No Node.js built-ins, and cold starts stay in the low milliseconds.</p>",
+    thumbnail: thumb("edge-functions-vercel"),
     category: "DevOps",
     tags: ["DevOps", "Serverless", "Vercel"],
-    date: "Sep 18, 2025",
-    imageSeed: "edge-functions-vercel",
-    author: authors.sarahChen,
+    status: "published",
+    createdAt: "2025-09-18T14:00:00Z",
+    updatedAt: "2025-09-18T14:00:00Z",
+    author: "Sarah Chen",
   },
   {
     id: "6",
-    slug: "css-container-queries",
     title: "A Complete Guide to CSS Container Queries",
-    excerpt:
+    slug: "css-container-queries",
+    description:
       "Ditch standard media queries and design truly responsive, container-boundary driven components.",
-    label: "CSS",
+    content:
+      "<p>Container queries respond to the component, not the viewport.</p><h2>Syntax</h2><p>Declare a containment context with <code>container-type</code>.</p>",
+    thumbnail: thumb("css-container-queries"),
     category: "Design",
     tags: ["CSS", "Responsive"],
-    date: "Sep 15, 2025",
-    imageSeed: "css-container-queries",
-    author: authors.sarahJenkins,
+    status: "published",
+    createdAt: "2025-09-15T09:40:00Z",
+    updatedAt: "2025-09-15T09:40:00Z",
+    author: "Sarah Jenkins",
   },
 ];

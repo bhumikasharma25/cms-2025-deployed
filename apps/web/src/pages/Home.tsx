@@ -15,7 +15,7 @@ export default function Home() {
   const filtered = posts.filter((post) => {
     const matchesQuery =
       !q ||
-      [post.title, post.excerpt, post.label, ...post.tags].some((field) =>
+      [post.title, post.description, post.category, ...post.tags].some((field) =>
         field.toLowerCase().includes(q)
       );
     const matchesCategory =
