@@ -9,6 +9,11 @@ import Home from "./pages/Home";
 import Placeholder from "./pages/Placeholder";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
+import Media from "./pages/admin/Media";
+import Tags from "./pages/admin/Tags";
+import Profile from "./pages/admin/Profile";
+import Settings from "./pages/admin/Settings";
+import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -46,6 +51,48 @@ function App() {
           <Route
             path="/admin/dashboard"
             element={<Dashboard />}
+          />
+          <Route
+            path="/admin/media"
+            element={<Media />}
+          />
+          <Route
+            path="/admin/tags"
+            element={<Tags />}
+          />
+          <Route
+            path="/admin/profile"
+            element={<Profile tab="info" />}
+          />
+          <Route
+            path="/admin/profile/security"
+            element={<Profile tab="security" />}
+          />
+          <Route
+            path="/admin/profile/notifications"
+            element={<Profile tab="notifications" />}
+          />
+          <Route
+            path="/admin/settings"
+            element={<Settings />}
+          />
+
+          {/* Nav targets that land in later sprints */}
+          <Route
+            path="/admin/blogs"
+            element={<AdminPlaceholder title="Posts" />}
+          />
+          <Route
+            path="/admin/blogs/create"
+            element={<AdminPlaceholder title="Create Post" />}
+          />
+          <Route
+            path="/admin/blogs/edit/:id"
+            element={<AdminPlaceholder title="Edit Post" />}
+          />
+          <Route
+            path="/admin/categories"
+            element={<AdminPlaceholder title="Categories" />}
           />
         </Route>
 
