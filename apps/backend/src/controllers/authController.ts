@@ -34,3 +34,38 @@ export const loginAdmin = async (req: Request, res: Response) => {
         },
     });
 };
+
+export const registerAdmin = async (req: Request, res: Response) => {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({
+            message: "Name, email and password are required",
+        });
+    }
+
+    const existingAdmin = await Admin.findOne({ email });
+
+    if (existingAdmin) {
+        return res.status(409).json({
+            message: "Admin already exists",
+        });
+    }
+
+    const admin = new Admin({
+        name,
+        email,
+        password,
+    });
+
+    await admin.save();
+
+    return res.status(201).json({
+        message: "Admin created successfully",
+        data: {
+            id: admin._id,
+            name: admin.name,
+            email: admin.email,
+        },
+    });
+};

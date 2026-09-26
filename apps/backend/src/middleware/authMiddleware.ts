@@ -6,6 +6,7 @@ export const authMiddleware = (req:Request,res:Response,next:NextFunction)=>{
     console.log("AUTH HEADER:", authHeader);
     if (!authHeader) {
     return res.status(401).json({
+    success: false, 
     message: "Authorization token required",
   });
 };
