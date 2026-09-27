@@ -1,13 +1,10 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { AUTH_KEY, TOKEN_KEY } from "../services/api";
+import { hasToken } from "../services/api";
 
 function ProtectedRoute() {
-  // Accept either a real JWT from the backend or the demo flag.
-  const isAuthenticated =
-    localStorage.getItem(TOKEN_KEY) !== null ||
-    localStorage.getItem(AUTH_KEY) === "true";
-
-  if (!isAuthenticated) {
+  // Requires a real JWT. The previous check also accepted a bare
+  // `isAuthenticated` localStorage flag, which anyone could set by hand.
+  if (!hasToken()) {
     return <Navigate to="/admin/login" replace />;
   }
 

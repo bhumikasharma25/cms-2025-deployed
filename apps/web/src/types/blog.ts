@@ -25,3 +25,12 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

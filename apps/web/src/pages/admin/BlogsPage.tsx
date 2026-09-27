@@ -10,7 +10,8 @@ import {
   IconSearch,
   IconTrash,
 } from "../../components/admin/icons";
-import { adminBlogs, adminCategories } from "../../data/adminBlogs";
+import { errorMessage, useApi } from "../../hooks/useApi";
+import { blogsApi, categoriesApi } from "../../services/api";
 import type { Blog, BlogStatus } from "../../types/blog";
 import { formatDate } from "../../utils/blog";
 
@@ -22,14 +23,21 @@ const statusLabel: Record<BlogStatus, string> = {
 };
 
 export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<Blog[]>(adminBlogs);
+  const { data, loading, error, refetch, setData } = useApi<Blog[]>(
+    () => blogsApi.list(),
+    []
+  );
+  const categories = useApi(() => categoriesApi.list(), []);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | BlogStatus>("all");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
+  const [deleting, setDeleting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Blog | null>(null);
   const navigate = useNavigate();
   const { show, node } = useToast();
+
+  const blogs = useMemo(() => data ?? [], [data]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,16 +56,19 @@ export default function BlogsPage() {
   const current = Math.min(page, totalPages);
   const visible = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
-  const update = (fn: (prev: Blog[]) => Blog[]) => {
-    setBlogs(fn);
-    setPage(1);
-  };
-
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDelete) return;
-    update((prev) => prev.filter((b) => b.id !== pendingDelete.id));
-    show("Blog deleted successfully.");
-    setPendingDelete(null);
+    setDeleting(true);
+    try {
+      await blogsApi.remove(pendingDelete.id);
+      setData(blogs.filter((b) => b.id !== pendingDelete.id));
+      show("Blog deleted successfully.");
+    } catch (err) {
+      show(errorMessage(err, "Failed to delete the blog."), "error");
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
   };
 
   return (
@@ -119,9 +130,9 @@ export default function BlogsPage() {
             }}
           >
             <option value="all">All Categories</option>
-            {adminCategories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {(categories.data ?? []).map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
               </option>
             ))}
           </select>
@@ -129,7 +140,23 @@ export default function BlogsPage() {
       </div>
 
       <section className="card">
-        {visible.length > 0 ? (
+        {loading ? (
+          <p className="card-desc" style={{ padding: "28px 4px" }}>
+            Loading blog posts...
+          </p>
+        ) : error ? (
+          <div className="empty-state">
+            <h3>Could not load your posts.</h3>
+            <p>{error}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={refetch}
+            >
+              Try again
+            </button>
+          </div>
+        ) : visible.length > 0 ? (
           <>
             <div className="table-wrap">
               <table className="table">
@@ -171,6 +198,7 @@ export default function BlogsPage() {
                             type="button"
                             className="icon-btn danger"
                             aria-label={`Delete ${blog.title}`}
+                            disabled={deleting}
                             onClick={() => setPendingDelete(blog)}
                           >
                             <IconTrash size={15} />
@@ -240,7 +268,7 @@ export default function BlogsPage() {
         open={pendingDelete !== null}
         title="Delete this blog?"
         message={`"${pendingDelete?.title}" will be permanently removed. This action cannot be undone.`}
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
         onCancel={() => setPendingDelete(null)}
       />
 

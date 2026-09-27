@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { AUTH_KEY, TOKEN_KEY } from "../../services/api";
+import { clearSession } from "../../services/api";
+import { useAdmin } from "../../hooks/useAdmin";
 import { IconBell, IconMenu, IconSearch } from "./icons";
 
 interface HeaderProps {
@@ -8,10 +9,10 @@ interface HeaderProps {
 
 export const Header = ({ onMenu }: HeaderProps) => {
   const navigate = useNavigate();
+  const { name: adminName, initials } = useAdmin();
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(AUTH_KEY);
+    clearSession();
     navigate("/admin/login", { replace: true });
   };
 
@@ -47,8 +48,8 @@ export const Header = ({ onMenu }: HeaderProps) => {
         <button type="button" className="btn btn-outline btn-sm" onClick={logout}>
           Logout
         </button>
-        <span className="avatar sm" title="Arpita Awasthi">
-          AA
+        <span className="avatar sm" title={adminName}>
+          {initials}
         </span>
       </div>
     </header>

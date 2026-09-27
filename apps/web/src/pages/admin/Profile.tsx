@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { NavLink } from "react-router-dom";
 import { AdminLayout } from "../../components/admin/admin-layout";
 import { useToast } from "../../components/admin/Toast";
 import { IconCheck, IconShield } from "../../components/admin/icons";
+import { useAdmin } from "../../hooks/useAdmin";
 
 type TabKey = "info" | "security" | "notifications";
 
@@ -16,12 +17,12 @@ const tabs: { key: TabKey; label: string; to: string }[] = [
   },
 ];
 
-const initialProfile = {
-  fullName: "Arpita Awasthi",
-  email: "arpita@blogify.com",
-  bio: "Developer relations engineer, writing about Node performance optimization and GraphQL design systems.",
-  website: "https://arpita.dev",
-};
+/**
+ * Identity comes from the live session, not a hardcoded person. The backend
+ * has no profile read/update endpoint, so anything not derivable from the
+ * session is left blank rather than invented.
+ */
+const emptyProfile = { fullName: "", email: "", bio: "", website: "" };
 
 const initialPassword = {
   current: "",
@@ -32,14 +33,14 @@ const initialPassword = {
 const sessions = [
   {
     id: "s1",
-    name: "MacBook Pro (Active)",
-    meta: "San Francisco, CA • Chrome • 192.168.1.1",
+    name: "Current browser",
+    meta: "Active session",
     active: true,
   },
   {
     id: "s2",
-    name: "iPhone 15 Pro",
-    meta: "San Francisco, CA • Safari • 192.168.1.25",
+    name: "Previous session",
+    meta: "Signed out",
     active: false,
   },
 ];
@@ -76,7 +77,13 @@ interface ProfileProps {
 }
 
 export default function Profile({ tab }: ProfileProps) {
-  const [profile, setProfile] = useState(initialProfile);
+  const { name, email, initials } = useAdmin();
+  const [profile, setProfile] = useState(emptyProfile);
+  // Fill the identity in once it resolves from the backend, and keep following
+  // it if the admin object arrives after first paint.
+  useEffect(() => {
+    setProfile((prev) => ({ ...prev, fullName: name, email }));
+  }, [name, email]);
   const [password, setPassword] = useState(initialPassword);
   const [twoFactor, setTwoFactor] = useState(true);
   const [sessionList, setSessionList] = useState(sessions);
@@ -150,7 +157,7 @@ export default function Profile({ tab }: ProfileProps) {
         <div className="profile-split">
           <form className="card" onSubmit={updateProfile} noValidate>
             <div className="profile-photo-row">
-              <span className="avatar lg">AA</span>
+              <span className="avatar lg">{initials}</span>
               <div>
                 <div className="form-actions">
                   <button type="button" className="btn btn-primary btn-sm">
@@ -233,10 +240,10 @@ export default function Profile({ tab }: ProfileProps) {
             <div className="card-title">Public Author Card Preview</div>
             <div className="preview-card" style={{ marginTop: 16 }}>
               <span className="avatar lg" style={{ margin: "0 auto" }}>
-                AA
+                {initials}
               </span>
               <div className="preview-name">{profile.fullName}</div>
-              <div className="preview-role">Developer Relations</div>
+              <div className="preview-role">Administrator</div>
               <p className="preview-bio">{profile.bio}</p>
               <div className="preview-links">
                 <span aria-label="Twitter">𝕏</span>

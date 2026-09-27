@@ -164,3 +164,17 @@ export const IconImage = ({ size = 24 }: IconProps) => (
     <path d="m14 15 1.6-1.6a2 2 0 0 1 2.8 0L20 15" />
   </svg>
 );
+
+export const IconLogout = ({ size = 17 }: IconProps) => (
+  <svg {...base(size)}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </svg>
+);
+
+export const IconSpinner = ({ size = 16 }: IconProps) => (
+  <svg {...base(size)} className="spin">
+    <path d="M21 12a9 9 0 1 1-6.2-8.6" />
+  </svg>
+);

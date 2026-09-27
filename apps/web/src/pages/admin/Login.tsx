@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiError, AUTH_KEY, authApi, TOKEN_KEY } from "../../services/api";
+import { ApiError, authApi, saveSession } from "../../services/api";
 import "../../styles/login.css";
 
-const DEMO_EMAIL = "admin@blogify.com";
-const DEMO_PASSWORD = "Blogify@123";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type FieldErrors = { email?: string; password?: string };
+type Mode = "login" | "register";
+
+type FieldErrors = { name?: string; email?: string; password?: string };
 
 export default function Login() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -19,15 +21,21 @@ export default function Login() {
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isRegister = mode === "register";
+
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
     const value = email.trim();
+
+    if (isRegister && name.trim().length < 2)
+      next.name = "Enter your full name";
 
     if (!value) next.email = "Enter your email address";
     else if (!EMAIL_PATTERN.test(value)) next.email = "Enter a valid email address";
 
     if (!password) next.password = "Enter a valid password";
-    else if (password.length < 6) next.password = "Enter a valid password";
+    else if (password.length < 6)
+      next.password = "Password must be at least 6 characters";
 
     return next;
   };
@@ -44,36 +52,37 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const result = await authApi.login({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+      const credentials = { email: email.trim().toLowerCase(), password };
 
-      localStorage.setItem(TOKEN_KEY, result.token);
-      localStorage.setItem(AUTH_KEY, "true");
-      navigate("/admin/dashboard");
-    } catch (err) {
-      // Fall back to the demo credentials so the panel stays usable
-      // while the backend auth route is not deployed yet.
-      if (
-        email.trim().toLowerCase() === DEMO_EMAIL &&
-        password === DEMO_PASSWORD
-      ) {
-        localStorage.setItem(AUTH_KEY, "true");
-        navigate("/admin/dashboard");
-        return;
+      if (isRegister) {
+        // `register` does not return a token, so sign in straight after.
+        await authApi.register({ ...credentials, name: name.trim() });
       }
 
-      const message =
-        err instanceof ApiError && err.status === 401
-          ? "Email or password is incorrect. Please try again."
-          : "Unable to reach the server. Please try again.";
-
-      setFormError(message);
-      setErrors({ password: "Enter a valid password" });
+      // `login` returns `{ token }` today; it will also carry `admin` once the
+      // backend returns the signed-in user, which saveSession caches.
+      const result = await authApi.login(credentials);
+      saveSession(result, credentials.email);
+      navigate("/admin/dashboard", { replace: true });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(
+          err.status === 401
+            ? "Email or password is incorrect. Please try again."
+            : err.message
+        );
+      } else {
+        setFormError("Unable to reach the server. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setErrors({});
+    setFormError("");
   };
 
   return (
@@ -98,9 +107,13 @@ export default function Login() {
           <span className="login-brand-name">Blogify</span>
         </div>
 
-        <h1 className="login-title">Welcome back</h1>
+        <h1 className="login-title">
+          {isRegister ? "Create your account" : "Welcome back"}
+        </h1>
         <p className="login-subtitle">
-          Sign in to manage your Blogify workspace.
+          {isRegister
+            ? "Register a new admin to manage your Blogify workspace."
+            : "Sign in to manage your Blogify workspace."}
         </p>
 
         <form className="login-form" onSubmit={handleSubmit} noValidate>
@@ -108,6 +121,34 @@ export default function Login() {
             <p className="login-alert" role="alert">
               {formError}
             </p>
+          )}
+
+          {isRegister && (
+            <div className="login-field">
+              <label className="login-label" htmlFor="login-name">
+                Full name
+              </label>
+              <input
+                id="login-name"
+                className="login-input"
+                type="text"
+                name="name"
+                autoComplete="name"
+                placeholder="Ada Lovelace"
+                value={name}
+                aria-invalid={errors.name ? true : undefined}
+                aria-describedby={errors.name ? "login-name-error" : undefined}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setErrors((prev) => ({ ...prev, name: undefined }));
+                }}
+              />
+              {errors.name && (
+                <p className="login-hint" id="login-name-error">
+                  {errors.name}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="login-field">
@@ -208,14 +249,18 @@ export default function Login() {
           </div>
 
           <div className="login-row">
-            <label className="login-remember">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />
-              Remember me
-            </label>
+            {isRegister ? (
+              <span />
+            ) : (
+              <label className="login-remember">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                Remember me
+              </label>
+            )}
             <button type="button" className="login-forgot">
               Forgot password?
             </button>
@@ -228,13 +273,23 @@ export default function Login() {
             aria-busy={loading}
           >
             {loading && <span className="login-spinner" aria-hidden="true" />}
-            {loading ? "Signing in..." : "Sign in"}
+            {loading
+              ? isRegister
+                ? "Creating account..."
+                : "Signing in..."
+              : isRegister
+                ? "Create account"
+                : "Sign in"}
           </button>
 
           <p className="login-signup">
-            Don&apos;t have an account?{" "}
-            <button type="button" className="login-forgot">
-              Sign up
+            {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              className="login-forgot"
+              onClick={() => switchMode(isRegister ? "login" : "register")}
+            >
+              {isRegister ? "Sign in" : "Sign up"}
             </button>
           </p>
 

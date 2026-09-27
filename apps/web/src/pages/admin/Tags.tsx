@@ -1,169 +1,72 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AdminLayout } from "../../components/admin/admin-layout";
-import { useToast } from "../../components/admin/Toast";
-import ConfirmModal from "../../components/admin/ConfirmModal";
 import {
-  IconEdit,
-  IconPlus,
+  IconPosts,
   IconSearch,
   IconTag,
-  IconTrash,
 } from "../../components/admin/icons";
+import { useApi } from "../../hooks/useApi";
+import { blogsApi } from "../../services/api";
+import type { Blog } from "../../types/blog";
+import { formatDate } from "../../utils/blog";
 
-interface Tag {
-  id: string;
-  name: string;
-  posts: number;
-  status: "active" | "draft" | "archived";
-  description: string;
+interface TagUsage {
+  tag: string;
+  count: number;
+  published: number;
+  latest: string | null;
+  posts: Blog[];
 }
 
-const seed: Tag[] = [
-  {
-    id: "t1",
-    name: "React",
-    posts: 42,
-    status: "active",
-    description: "Posts about React hooks, patterns and the component model.",
-  },
-  {
-    id: "t2",
-    name: "TypeScript",
-    posts: 36,
-    status: "active",
-    description: "Typing strategies, generics and tooling for large codebases.",
-  },
-  {
-    id: "t3",
-    name: "Performance",
-    posts: 24,
-    status: "active",
-    description: "Rendering, bundling and runtime optimisation write-ups.",
-  },
-  {
-    id: "t4",
-    name: "Accessibility",
-    posts: 18,
-    status: "active",
-    description: "Inclusive design, ARIA patterns and keyboard navigation.",
-  },
-  {
-    id: "t5",
-    name: "GraphQL",
-    posts: 11,
-    status: "active",
-    description: "Schema design, resolvers and client data fetching.",
-  },
-  {
-    id: "t6",
-    name: "Testing",
-    posts: 9,
-    status: "draft",
-    description: "Unit, integration and end-to-end testing practices.",
-  },
-  {
-    id: "t7",
-    name: "Web3",
-    posts: 4,
-    status: "archived",
-    description: "Legacy content about on-chain application development.",
-  },
-];
-
-const statusLabel: Record<Tag["status"], string> = {
-  active: "Active",
-  draft: "Draft",
-  archived: "Archived",
-};
-
-const emptyDraft = { name: "", description: "" };
-
+/**
+ * Tags live as a string array on each blog document, so there is no separate
+ * tag resource to CRUD. This page is therefore an inventory built from the
+ * real blog list: which tags exist, how often they are used, and which posts
+ * use them. Editing a tag means editing the post that carries it.
+ */
 export default function Tags() {
-  const [tags, setTags] = useState<Tag[]>(seed);
+  const { data, loading, error, refetch } = useApi<Blog[]>(
+    () => blogsApi.list(),
+    []
+  );
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(seed[0].id);
-  const [draft, setDraft] = useState(emptyDraft);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<Tag | null>(null);
-  const { show, node } = useToast();
+
+  const blogs = useMemo(() => data ?? [], [data]);
+
+  const usage = useMemo<TagUsage[]>(() => {
+    const map = new Map<string, TagUsage>();
+
+    for (const blog of blogs) {
+      for (const raw of blog.tags) {
+        const tag = raw.trim();
+        if (!tag) continue;
+        const existing = map.get(tag) ?? {
+          tag,
+          count: 0,
+          published: 0,
+          latest: null,
+          posts: [],
+        };
+        existing.count += 1;
+        if (blog.status === "published") existing.published += 1;
+        if (!existing.latest || blog.createdAt > existing.latest) {
+          existing.latest = blog.createdAt;
+        }
+        existing.posts.push(blog);
+        map.set(tag, existing);
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }, [blogs]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? tags.filter((t) => t.name.toLowerCase().includes(q)) : tags;
-  }, [tags, query]);
+    return q ? usage.filter((t) => t.tag.toLowerCase().includes(q)) : usage;
+  }, [usage, query]);
 
-  const selected = tags.find((t) => t.id === selectedId) ?? tags[0];
-
-  const stats = [
-    { label: "Total tags", value: tags.length },
-    {
-      label: "Used tags",
-      value: tags.filter((t) => t.status === "active").length,
-    },
-    { label: "Draft tags", value: tags.filter((t) => t.status === "draft").length },
-    {
-      label: "Archived tags",
-      value: tags.filter((t) => t.status === "archived").length,
-    },
-  ];
-
-  const openCreate = () => {
-    setEditingId(null);
-    setDraft(emptyDraft);
-    setShowForm(true);
-  };
-
-  const openEdit = (tag: Tag) => {
-    setEditingId(tag.id);
-    setDraft({ name: tag.name, description: tag.description });
-    setShowForm(true);
-  };
-
-  const saveTag = () => {
-    const name = draft.name.trim();
-    if (name.length < 2) {
-      show("Tag name must be at least 2 characters.", "error");
-      return;
-    }
-
-    if (editingId) {
-      setTags((prev) =>
-        prev.map((t) =>
-          t.id === editingId
-            ? { ...t, name, description: draft.description.trim() }
-            : t
-        )
-      );
-      show("Tag updated successfully.");
-    } else {
-      const created: Tag = {
-        id: `t${Date.now()}`,
-        name,
-        posts: 0,
-        status: "draft",
-        description: draft.description.trim() || "No description yet.",
-      };
-      setTags((prev) => [created, ...prev]);
-      setSelectedId(created.id);
-      show("Tag created successfully.");
-    }
-
-    setShowForm(false);
-    setDraft(emptyDraft);
-    setEditingId(null);
-  };
-
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    setTags((prev) => prev.filter((t) => t.id !== pendingDelete.id));
-    if (selectedId === pendingDelete.id) {
-      const next = tags.find((t) => t.id !== pendingDelete.id);
-      setSelectedId(next ? next.id : "");
-    }
-    show("Tag deleted successfully.");
-    setPendingDelete(null);
-  };
+  const totalAssignments = usage.reduce((sum, t) => sum + t.count, 0);
 
   return (
     <AdminLayout>
@@ -171,259 +74,136 @@ export default function Tags() {
         <div>
           <h1 className="page-title">Tags</h1>
           <p className="page-sub">
-            Manage the labels used to group posts across the blog.
+            Every tag in use across your posts, derived from the blog list.
           </p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            <IconPlus size={16} />
-            Add Tag
-          </button>
+          <Link className="btn btn-outline" to="/admin/blogs/create">
+            <IconTag size={15} />
+            Add tags to a post
+          </Link>
         </div>
       </div>
 
-      <div className="stat-grid">
-        {stats.map((stat) => (
-          <div className="stat-card" key={stat.label}>
-            <div>
-              <div className="stat-label">{stat.label}</div>
-              <div className="stat-value">{stat.value}</div>
-            </div>
-            <span className="stat-icon">
-              <IconTag size={16} />
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="split">
-        <section className="card">
-          <div className="card-head">
-            <div>
-              <div className="card-title">All Tags</div>
-              <div className="card-desc">{visible.length} tags shown</div>
-            </div>
-            <div className="search-box">
-              <IconSearch size={15} />
-              <input
-                type="search"
-                placeholder="Search tags..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search tags"
-              />
-            </div>
-          </div>
-
-          {visible.length > 0 ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Tag</th>
-                    <th>Posts</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((tag) => (
-                    <tr
-                      key={tag.id}
-                      className={tag.id === selected?.id ? "selected" : ""}
-                      onClick={() => setSelectedId(tag.id)}
-                    >
-                      <td>
-                        <span className="cell-strong">#{tag.name}</span>
-                      </td>
-                      <td>{tag.posts}</td>
-                      <td>
-                        <span className={`badge badge-${tag.status}`}>
-                          {statusLabel[tag.status]}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            aria-label={`Edit ${tag.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEdit(tag);
-                            }}
-                          >
-                            <IconEdit size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn danger"
-                            aria-label={`Delete ${tag.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingDelete(tag);
-                            }}
-                          >
-                            <IconTrash size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-state">
-              <h3>No tags found.</h3>
-              <p>Create your first tag to start grouping posts.</p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={openCreate}
-              >
-                <IconPlus size={16} />
-                Add Tag
-              </button>
-            </div>
-          )}
-        </section>
-
-        <aside className="card">
-          <div className="card-head">
-            <div className="card-title">Selected Tag</div>
-            {selected && (
-              <span className={`badge badge-${selected.status}`}>
-                {statusLabel[selected.status]}
-              </span>
-            )}
-          </div>
-
-          {selected ? (
-            <>
-              <div className="detail-kv">
-                <div className="detail-key">Name</div>
-                <div className="detail-val">#{selected.name}</div>
-              </div>
-              <div className="detail-kv">
-                <div className="detail-key">Slug</div>
-                <div className="detail-val">
-                  {selected.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
-                </div>
-              </div>
-              <div className="detail-kv">
-                <div className="detail-key">Posts</div>
-                <div className="detail-val">{selected.posts}</div>
-              </div>
-              <div className="detail-kv">
-                <div className="detail-key">Description</div>
-                <div className="detail-val">{selected.description}</div>
-              </div>
-              <div className="detail-actions">
-                <button
-                  type="button"
-                  className="btn btn-outline btn-block"
-                  onClick={() => openEdit(selected)}
-                >
-                  <IconEdit size={15} />
-                  Edit Tag
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-block"
-                  onClick={() => {
-                    setTags((prev) =>
-                      prev.map((t) =>
-                        t.id === selected.id
-                          ? {
-                              ...t,
-                              status:
-                                t.status === "active" ? "draft" : "active",
-                            }
-                          : t
-                      )
-                    );
-                    show("Tag status updated.");
-                  }}
-                >
-                  {selected.status === "active" ? "Move to Draft" : "Publish Tag"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="card-desc">Select a tag to see its details.</p>
-          )}
-        </aside>
-      </div>
-
-      {showForm && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label={editingId ? "Edit tag" : "Add tag"}
-          onClick={() => setShowForm(false)}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">
-              {editingId ? "Edit Tag" : "Add Tag"}
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <div className="field">
-                <label className="label" htmlFor="tag-name">
-                  Tag name
-                </label>
-                <input
-                  id="tag-name"
-                  className="input"
-                  value={draft.name}
-                  placeholder="e.g. React"
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, name: e.target.value }))
-                  }
-                  autoFocus
-                />
-              </div>
-              <div className="field">
-                <label className="label" htmlFor="tag-desc">
-                  Description
-                </label>
-                <textarea
-                  id="tag-desc"
-                  className="textarea"
-                  value={draft.description}
-                  placeholder="What is this tag used for?"
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, description: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setShowForm(false)}
-              >
-                Cancel
-              </button>
-              <button type="button" className="btn btn-primary" onClick={saveTag}>
-                {editingId ? "Save Changes" : "Create Tag"}
-              </button>
-            </div>
-          </div>
+      {error && (
+        <div className="alert error" role="alert">
+          {error}
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={refetch}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      <ConfirmModal
-        open={pendingDelete !== null}
-        title="Delete this tag?"
-        message={`"${pendingDelete?.name}" will be removed from every post that uses it. This action cannot be undone.`}
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
+      <div className="stat-grid">
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Unique tags</div>
+            <div className="stat-value">{loading ? "—" : usage.length}</div>
+          </div>
+          <span className="stat-icon">
+            <IconTag size={16} />
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Tag assignments</div>
+            <div className="stat-value">{loading ? "—" : totalAssignments}</div>
+          </div>
+          <span className="stat-icon">
+            <IconPosts size={16} />
+          </span>
+        </div>
+      </div>
 
-      {node}
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">All Tags</div>
+            <div className="card-desc">
+              {visible.length} of {usage.length} tags
+            </div>
+          </div>
+          <div className="search-box">
+            <IconSearch size={15} />
+            <input
+              type="search"
+              placeholder="Search tags..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search tags"
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="card-desc" style={{ padding: "20px 4px" }}>
+            Loading tags...
+          </p>
+        ) : visible.length > 0 ? (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Posts</th>
+                  <th>Published</th>
+                  <th>Last used</th>
+                  <th style={{ textAlign: "right" }}>Posts using it</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(({ tag, count, published, latest, posts }) => (
+                  <tr key={tag}>
+                    <td className="cell-strong">#{tag}</td>
+                    <td>{count}</td>
+                    <td>
+                      <span className="badge badge-published">{published}</span>
+                    </td>
+                    <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>
+                      {latest ? formatDate(latest) : "—"}
+                    </td>
+                    <td>
+                      <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                        {posts.slice(0, 3).map((post) => (
+                          <Link
+                            key={post.id}
+                            className="icon-btn"
+                            aria-label={`Edit ${post.title}`}
+                            title={post.title}
+                            to={`/admin/blogs/edit/${post.id}`}
+                          >
+                            <IconPosts size={15} />
+                          </Link>
+                        ))}
+                        {posts.length > 3 && (
+                          <span style={{ color: "var(--muted)" }}>
+                            +{posts.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h3>No tags yet.</h3>
+            <p>
+              Add comma-separated tags when creating or editing a post and they
+              will show up here.
+            </p>
+            <Link className="btn btn-primary" to="/admin/blogs/create">
+              Create Post
+            </Link>
+          </div>
+        )}
+      </section>
     </AdminLayout>
   );
 }

@@ -1,79 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "../../components/admin/admin-layout";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { useToast } from "../../components/admin/Toast";
 import {
-  IconArchive,
-  IconCheck,
-  IconClock,
   IconEdit,
   IconFolder,
   IconPlus,
   IconSearch,
   IconTrash,
 } from "../../components/admin/icons";
-
-type CategoryStatus = "active" | "draft" | "archived";
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  posts: number;
-  status: CategoryStatus;
-}
-
-const seed: Category[] = [
-  {
-    id: "1",
-    name: "Design Systems",
-    slug: "design-systems",
-    description:
-      "Parent category for reusable design patterns, component documentation, and layout standards.",
-    posts: 128,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Component Library",
-    slug: "component-library",
-    description: "Child category documenting every shared component.",
-    posts: 64,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Layout Patterns",
-    slug: "layout-patterns",
-    description: "Child category for grid, flexbox and spacing conventions.",
-    posts: 31,
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Performance",
-    slug: "performance",
-    description:
-      "Parent category for rendering, bundling and runtime optimisation write-ups.",
-    posts: 87,
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Security",
-    slug: "security",
-    description: "Child category for auth, OWASP and dependency hygiene.",
-    posts: 29,
-    status: "draft",
-  },
-];
-
-const statusLabel: Record<CategoryStatus, string> = {
-  active: "Active",
-  draft: "Draft",
-  archived: "Archived",
-};
+import { errorMessage } from "../../hooks/useApi";
+import { blogsApi, categoriesApi } from "../../services/api";
+import type { Blog, Category } from "../../types/blog";
 
 const slugify = (value: string) =>
   value
@@ -83,14 +21,42 @@ const slugify = (value: string) =>
     .replace(/^-+|-+$/g, "");
 
 export default function Categories() {
-  const [categories, setCategories] = useState<Category[]>(seed);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(seed[0].id);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ name: "", description: "" });
+  const [draftName, setDraftName] = useState("");
+  const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
   const { show, node } = useToast();
+
+  const load = () => {
+    setLoading(true);
+    setLoadError("");
+    Promise.all([categoriesApi.list(), blogsApi.list()])
+      .then(([cats, allBlogs]) => {
+        setCategories(cats);
+        setBlogs(allBlogs);
+        setSelectedId((prev) => prev ?? cats[0]?.id ?? null);
+      })
+      .catch((err) => setLoadError(errorMessage(err, "Failed to load categories.")))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  /** The Category model has no post counter, so derive it from the blogs. */
+  const postCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const blog of blogs) {
+      counts.set(blog.category, (counts.get(blog.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [blogs]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -99,87 +65,71 @@ export default function Categories() {
       : categories;
   }, [categories, query]);
 
-  const selected = categories.find((c) => c.id === selectedId) ?? categories[0];
-
-  const stats = [
-    {
-      label: "Total categories",
-      value: categories.length,
-      Icon: IconFolder,
-    },
-    {
-      label: "Active categories",
-      value: categories.filter((c) => c.status === "active").length,
-      Icon: IconCheck,
-    },
-    {
-      label: "Draft categories",
-      value: categories.filter((c) => c.status === "draft").length,
-      Icon: IconClock,
-    },
-    {
-      label: "Archived categories",
-      value: categories.filter((c) => c.status === "archived").length,
-      Icon: IconArchive,
-    },
-  ];
+  const selected = categories.find((c) => c.id === selectedId) ?? null;
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft({ name: "", description: "" });
+    setDraftName("");
     setShowForm(true);
   };
 
   const openEdit = (category: Category) => {
     setEditingId(category.id);
-    setDraft({ name: category.name, description: category.description });
+    setDraftName(category.name);
     setShowForm(true);
   };
 
-  const saveCategory = () => {
-    const name = draft.name.trim();
+  const saveCategory = async () => {
+    if (saving) return;
+    const name = draftName.trim();
+
     if (name.length < 2) {
       show("Category name must be at least 2 characters.", "error");
       return;
     }
 
-    if (editingId) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingId
-            ? { ...c, name, slug: slugify(name), description: draft.description.trim() }
-            : c
-        )
-      );
-      show("Category updated successfully.");
-    } else {
-      const created: Category = {
-        id: `c${Date.now()}`,
-        name,
-        slug: slugify(name),
-        description: draft.description.trim() || "No description yet.",
-        posts: 0,
-        status: "draft",
-      };
-      setCategories((prev) => [created, ...prev]);
-      setSelectedId(created.id);
-      show("Category created successfully.");
+    const slug = slugify(name);
+    if (!slug) {
+      show("Category name must contain letters or numbers.", "error");
+      return;
     }
 
-    setShowForm(false);
-    setDraft({ name: "", description: "" });
-    setEditingId(null);
+    setSaving(true);
+    try {
+      if (editingId) {
+        const updated = await categoriesApi.update(editingId, { name, slug });
+        setCategories((prev) => prev.map((c) => (c.id === editingId ? updated : c)));
+        show("Category updated successfully.");
+      } else {
+        const created = await categoriesApi.create({ name, slug });
+        setCategories((prev) => [created, ...prev]);
+        setSelectedId(created.id);
+        show("Category created successfully.");
+      }
+      setShowForm(false);
+      setDraftName("");
+      setEditingId(null);
+    } catch (err) {
+      // 409 is returned when the name or slug is already taken.
+      show(errorMessage(err, "Failed to save the category."), "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDelete) return;
-    const next = categories.filter((c) => c.id !== pendingDelete.id);
-    setCategories(next);
-    if (selectedId === pendingDelete.id) {
-      setSelectedId(next[0]?.id ?? "");
-    }
-    show("Category deleted successfully.");
+    const target = pendingDelete;
     setPendingDelete(null);
+    try {
+      await categoriesApi.remove(target.id);
+      const next = categories.filter((c) => c.id !== target.id);
+      setCategories(next);
+      if (selectedId === target.id) setSelectedId(next[0]?.id ?? null);
+      show("Category deleted successfully.");
+    } catch (err) {
+      show(errorMessage(err, "Failed to delete the category."), "error");
+    }
   };
 
   return (
@@ -187,28 +137,51 @@ export default function Categories() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Categories</h1>
-          <p className="page-sub">Manage category hierarchy, visibility and post assignment.</p>
+          <p className="page-sub">Create and organise the categories posts belong to.</p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={openCreate}
+            disabled={loading}
+          >
             <IconPlus size={16} />
             Add Category
           </button>
         </div>
       </div>
 
+      {loadError && (
+        <div className="alert error" role="alert">
+          {loadError}
+          <button type="button" className="btn btn-outline btn-sm" onClick={load}>
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="stat-grid">
-        {stats.map(({ label, value, Icon }) => (
-          <div className="stat-card" key={label}>
-            <div>
-              <div className="stat-label">{label}</div>
-              <div className="stat-value">{value}</div>
-            </div>
-            <span className="stat-icon">
-              <Icon size={16} />
-            </span>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Total categories</div>
+            <div className="stat-value">{loading ? "—" : categories.length}</div>
           </div>
-        ))}
+          <span className="stat-icon">
+            <IconFolder size={16} />
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Categories in use</div>
+            <div className="stat-value">
+              {loading ? "—" : postCount.size}
+            </div>
+          </div>
+          <span className="stat-icon">
+            <IconFolder size={16} />
+          </span>
+        </div>
       </div>
 
       <div className="split">
@@ -232,14 +205,17 @@ export default function Categories() {
             </div>
           </div>
 
-          {visible.length > 0 ? (
+          {loading ? (
+            <p className="card-desc" style={{ padding: "20px 4px" }}>
+              Loading categories...
+            </p>
+          ) : visible.length > 0 ? (
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
                     <th>Category</th>
                     <th>Posts</th>
-                    <th>Status</th>
                     <th style={{ textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
@@ -257,18 +233,11 @@ export default function Categories() {
                           </span>
                           <div>
                             <div className="cell-strong">{category.name}</div>
-                            <span className="cell-sub">
-                              {category.posts} posts
-                            </span>
+                            <span className="cell-sub">/{category.slug}</span>
                           </div>
                         </div>
                       </td>
-                      <td>{category.posts}</td>
-                      <td>
-                        <span className={`badge badge-${category.status}`}>
-                          {statusLabel[category.status]}
-                        </span>
-                      </td>
+                      <td>{postCount.get(category.name) ?? 0}</td>
                       <td>
                         <div className="row-actions">
                           <button
@@ -322,11 +291,6 @@ export default function Categories() {
               <div className="card-title">Category Details</div>
               <div className="card-desc">Currently selected node</div>
             </div>
-            {selected && (
-              <span className={`badge badge-${selected.status}`}>
-                {statusLabel[selected.status]}
-              </span>
-            )}
           </div>
 
           {selected ? (
@@ -341,11 +305,9 @@ export default function Categories() {
               </div>
               <div className="detail-kv">
                 <div className="detail-key">Posts</div>
-                <div className="detail-val">{selected.posts}</div>
-              </div>
-              <div className="detail-kv">
-                <div className="detail-key">Description</div>
-                <div className="detail-val">{selected.description}</div>
+                <div className="detail-val">
+                  {postCount.get(selected.name) ?? 0}
+                </div>
               </div>
               <div className="detail-actions">
                 <button
@@ -355,25 +317,6 @@ export default function Categories() {
                 >
                   <IconEdit size={15} />
                   Edit Category
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-block"
-                  onClick={() => {
-                    setCategories((prev) =>
-                      prev.map((c) =>
-                        c.id === selected.id
-                          ? {
-                              ...c,
-                              status: c.status === "active" ? "draft" : "active",
-                            }
-                          : c
-                      )
-                    );
-                    show("Category status updated.");
-                  }}
-                >
-                  {selected.status === "active" ? "Move to Draft" : "Publish Changes"}
                 </button>
               </div>
             </>
@@ -403,30 +346,14 @@ export default function Categories() {
                 <input
                   id="cat-name"
                   className="input"
-                  value={draft.name}
+                  value={draftName}
                   placeholder="e.g. Design Systems"
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, name: e.target.value }))
-                  }
+                  onChange={(e) => setDraftName(e.target.value)}
                   autoFocus
                 />
                 <p className="hint">
-                  Slug: {slugify(draft.name) || "your-category-slug"}
+                  Slug: {slugify(draftName) || "your-category-slug"}
                 </p>
-              </div>
-              <div className="field">
-                <label className="label" htmlFor="cat-desc">
-                  Description
-                </label>
-                <textarea
-                  id="cat-desc"
-                  className="textarea"
-                  value={draft.description}
-                  placeholder="What belongs in this category?"
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, description: e.target.value }))
-                  }
-                />
               </div>
             </div>
             <div className="modal-actions">
@@ -440,9 +367,14 @@ export default function Categories() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={saveCategory}
+                disabled={saving}
+                onClick={() => void saveCategory()}
               >
-                {editingId ? "Save Changes" : "Create Category"}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Save Changes"
+                    : "Create Category"}
               </button>
             </div>
           </div>
@@ -452,8 +384,8 @@ export default function Categories() {
       <ConfirmModal
         open={pendingDelete !== null}
         title="Delete this category?"
-        message={`"${pendingDelete?.name}" will be removed. Posts in this category will need to be reassigned.`}
-        onConfirm={confirmDelete}
+        message={`"${pendingDelete?.name}" will be removed. Posts already using it keep their category name.`}
+        onConfirm={() => void confirmDelete()}
         onCancel={() => setPendingDelete(null)}
       />
 

@@ -1,296 +1,235 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AdminLayout } from "../../components/admin/admin-layout";
-import { useToast } from "../../components/admin/Toast";
-import ConfirmModal from "../../components/admin/ConfirmModal";
 import {
   IconImage,
   IconSearch,
-  IconTrash,
-  IconUpload,
 } from "../../components/admin/icons";
-
-type Kind = "image" | "doc" | "video";
+import { useApi } from "../../hooks/useApi";
+import { blogsApi } from "../../services/api";
+import type { Blog } from "../../types/blog";
 
 interface MediaItem {
   id: string;
   name: string;
-  size: string;
-  kind: Kind;
-  preview?: string;
-  gradient: string;
+  src: string;
+  /** Where the image came from, so it is clear the library is derived. */
+  origin: "thumbnail" | "inline";
+  posts: Blog[];
+  isDataUri: boolean;
 }
 
-const seed: MediaItem[] = [
-  {
-    id: "m1",
-    name: "server-nodes.png",
-    size: "2.4 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#0ea5e9,#1e3a8a 60%,#312e81)",
-  },
-  {
-    id: "m2",
-    name: "office-desk.jpg",
-    size: "1.8 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#fdba74,#78350f 65%,#1c1917)",
-  },
-  {
-    id: "m3",
-    name: "ai-trends.png",
-    size: "3.1 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#f472b6,#7c3aed 55%,#1e1b4b)",
-  },
-  {
-    id: "m4",
-    name: "code-editor.png",
-    size: "890 KB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#334155,#0f172a 60%,#020617)",
-  },
-  {
-    id: "m5",
-    name: "mobile-preview.jpg",
-    size: "1.1 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#38bdf8,#0369a1 55%,#082f49)",
-  },
-  {
-    id: "m6",
-    name: "chart-analytics.png",
-    size: "1.4 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#93c5fd,#1e293b 60%,#0f172a)",
-  },
-  {
-    id: "m7",
-    name: "team-discussion.jpg",
-    size: "4.2 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#fcd34d,#b45309 60%,#451a03)",
-  },
-  {
-    id: "m8",
-    name: "coffee-notebook.jpg",
-    size: "1.5 MB",
-    kind: "image",
-    gradient: "linear-gradient(135deg,#e7e5e4,#a8a29e 55%,#44403c)",
-  },
-  {
-    id: "m9",
-    name: "brand-guidelines.pdf",
-    size: "620 KB",
-    kind: "doc",
-    gradient: "linear-gradient(135deg,#fca5a5,#b91c1c 60%,#450a0a)",
-  },
-  {
-    id: "m10",
-    name: "release-notes.md",
-    size: "48 KB",
-    kind: "doc",
-    gradient: "linear-gradient(135deg,#c4b5fd,#6d28d9 60%,#2e1065)",
-  },
-  {
-    id: "m11",
-    name: "product-tour.mp4",
-    size: "18.6 MB",
-    kind: "video",
-    gradient: "linear-gradient(135deg,#6ee7b7,#047857 60%,#022c22)",
-  },
-  {
-    id: "m12",
-    name: "onboarding.mp4",
-    size: "12.3 MB",
-    kind: "video",
-    gradient: "linear-gradient(135deg,#fda4af,#9f1239 60%,#4c0519)",
-  },
-];
+const bytesLabel = (src: string) => {
+  if (!src.startsWith("data:")) return "remote";
+  // base64 inflates by ~4/3
+  const approx = Math.round((src.length * 0.75) / 1024);
+  return approx > 1024 ? `${(approx / 1024).toFixed(1)} MB` : `${approx} KB`;
+};
 
-const filters: { key: "all" | Kind; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "image", label: "Images" },
-  { key: "doc", label: "Docs" },
-  { key: "video", label: "Videos" },
-];
-
-const formatSize = (bytes: number) =>
-  bytes >= 1024 * 1024
-    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-
+/**
+ * PRD §47 media library.
+ *
+ * There is no upload endpoint and no media collection, so rather than fake a
+ * library with seeded rows this page inventories the images that actually
+ * exist: every post thumbnail plus every inline image inside article content.
+ * Deleting a post is what removes an image.
+ */
 export default function Media() {
-  const [items, setItems] = useState<MediaItem[]>(seed);
-  const [filter, setFilter] = useState<"all" | Kind>("all");
+  const { data, loading, error, refetch } = useApi<Blog[]>(
+    () => blogsApi.list(),
+    []
+  );
   const [query, setQuery] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { show, node } = useToast();
+  const [origin, setOrigin] = useState<"all" | MediaItem["origin"]>("all");
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter(
-      (item) =>
-        (filter === "all" || item.kind === filter) &&
-        (!q || item.name.toLowerCase().includes(q))
-    );
-  }, [items, filter, query]);
+  const blogs = useMemo(() => data ?? [], [data]);
 
-  const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const items = useMemo<MediaItem[]>(() => {
+    const found = new Map<string, MediaItem>();
 
-    const added: MediaItem[] = [];
-    for (const file of Array.from(files)) {
-      const kind: Kind = file.type.startsWith("video/")
-        ? "video"
-        : file.type.startsWith("image/")
-          ? "image"
-          : "doc";
+    const add = (src: string, name: string, blog: Blog, kind: MediaItem["origin"]) => {
+      if (!src) return;
+      const existing = found.get(src);
+      if (existing) {
+        if (!existing.posts.some((p) => p.id === blog.id)) {
+          existing.posts.push(blog);
+        }
+        return;
+      }
+      found.set(src, {
+        id: src.slice(0, 48),
+        name,
+        src,
+        origin: kind,
+        posts: [blog],
+        isDataUri: src.startsWith("data:"),
+      });
+    };
 
-      added.push({
-        id: `${Date.now()}-${file.name}`,
-        name: file.name,
-        size: formatSize(file.size),
-        kind,
-        preview: kind === "image" ? URL.createObjectURL(file) : undefined,
-        gradient:
-          kind === "image"
-            ? "linear-gradient(135deg,#94a3b8,#334155 60%,#0f172a)"
-            : "linear-gradient(135deg,#cbd5e1,#475569 60%,#1e293b)",
+    for (const blog of blogs) {
+      add(blog.thumbnail, `${blog.slug}-thumb`, blog, "thumbnail");
+
+      // Inline <img src="…"> inside the stored article HTML.
+      const matches = blog.content.match(/<img[^>]+src="([^"]+)"/gi) ?? [];
+      matches.forEach((tag, index) => {
+        const src = /src="([^"]+)"/i.exec(tag)?.[1];
+        if (src) add(src, `${blog.slug}-inline-${index + 1}`, blog, "inline");
       });
     }
 
-    setItems((prev) => [...added, ...prev]);
-    show(
-      added.length === 1
-        ? `${added[0].name} uploaded successfully.`
-        : `${added.length} files uploaded successfully.`
-    );
-    if (fileRef.current) fileRef.current.value = "";
-  };
+    return [...found.values()];
+  }, [blogs]);
 
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    setItems((prev) => prev.filter((item) => item.id !== pendingDelete.id));
-    show(`${pendingDelete.name} deleted successfully.`);
-    setPendingDelete(null);
-  };
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((item) => {
+      const matchesOrigin = origin === "all" || item.origin === origin;
+      const matchesQuery =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.posts.some((p) => p.title.toLowerCase().includes(q));
+      return matchesOrigin && matchesQuery;
+    });
+  }, [items, query, origin]);
+
+  const embedded = items.filter((i) => i.isDataUri).length;
 
   return (
     <AdminLayout>
       <div className="page-head">
         <div>
-          <h1 className="page-title">Media Library</h1>
+          <h1 className="page-title">Media</h1>
           <p className="page-sub">
-            Upload and manage images, documents and videos used in posts.
+            Images currently attached to your posts, collected from the blog
+            list.
           </p>
         </div>
         <div className="page-actions">
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            hidden
-            accept="image/*,application/pdf,.md,.doc,.docx,video/*"
-            onChange={(e) => handleFiles(e.target.files)}
-          />
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => fileRef.current?.click()}
-          >
-            <IconUpload size={16} />
-            Upload File
-          </button>
+          <Link className="btn btn-primary" to="/admin/blogs/create">
+            <IconImage size={15} />
+            Upload via a post
+          </Link>
         </div>
       </div>
 
-      <div className="toolbar">
-        <div className="chips">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`chip${filter === f.key ? " active" : ""}`}
-              onClick={() => setFilter(f.key)}
-              aria-pressed={filter === f.key}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="search-box">
-          <IconSearch size={15} />
-          <input
-            type="search"
-            placeholder="Search media files..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search media files"
-          />
-        </div>
-      </div>
-
-      {visible.length > 0 ? (
-        <div className="media-grid">
-          {visible.map((item) => (
-            <article className="media-card" key={item.id}>
-              <div
-                className="media-thumb"
-                style={
-                  item.preview
-                    ? {
-                        backgroundImage: `url(${item.preview})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }
-                    : { backgroundImage: item.gradient }
-                }
-              >
-                {!item.preview && <IconImage size={30} />}
-              </div>
-              <div className="media-meta">
-                <div className="media-name">{item.name}</div>
-                <div className="media-size">{item.size}</div>
-              </div>
-              <div className="media-actions">
-                <button
-                  type="button"
-                  className="icon-btn danger"
-                  aria-label={`Delete ${item.name}`}
-                  onClick={() => setPendingDelete(item)}
-                >
-                  <IconTrash size={15} />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <h3>No media found.</h3>
-          <p>Try a different filter or upload a new file.</p>
+      {error && (
+        <div className="alert error" role="alert">
+          {error}
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={() => fileRef.current?.click()}
+            className="btn btn-outline btn-sm"
+            onClick={refetch}
           >
-            <IconUpload size={16} />
-            Upload File
+            Retry
           </button>
         </div>
       )}
 
-      <ConfirmModal
-        open={pendingDelete !== null}
-        title="Delete this file?"
-        message={`"${pendingDelete?.name}" will be permanently removed from the media library. This action cannot be undone.`}
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
+      <div className="stat-grid">
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Images in use</div>
+            <div className="stat-value">{loading ? "—" : items.length}</div>
+          </div>
+          <span className="stat-icon">
+            <IconImage size={16} />
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">Stored inline</div>
+            <div className="stat-value">{loading ? "—" : embedded}</div>
+          </div>
+          <span className="stat-icon">
+            <IconImage size={16} />
+          </span>
+        </div>
+      </div>
 
-      {node}
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">Library</div>
+            <div className="card-desc">
+              {visible.length} of {items.length} images
+            </div>
+          </div>
+          <div className="page-actions">
+            <select
+              className="toolbar-select"
+              value={origin}
+              aria-label="Filter by image source"
+              onChange={(e) =>
+                setOrigin(e.target.value as "all" | MediaItem["origin"])
+              }
+            >
+              <option value="all">All sources</option>
+              <option value="thumbnail">Thumbnails</option>
+              <option value="inline">Inline images</option>
+            </select>
+            <div className="search-box">
+              <IconSearch size={15} />
+              <input
+                type="search"
+                placeholder="Search media..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search media"
+              />
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="card-desc" style={{ padding: "20px 4px" }}>
+            Loading media...
+          </p>
+        ) : visible.length > 0 ? (
+          <div className="media-grid">
+            {visible.map((item) => (
+              <figure className="media-tile" key={item.id}>
+                <div className="media-thumb">
+                  <img
+                    src={item.src}
+                    alt={item.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
+                  />
+                </div>
+                <figcaption>
+                  <div className="cell-strong" title={item.name}>
+                    {item.name}
+                  </div>
+                  <div className="cell-sub">
+                    {item.origin === "thumbnail" ? "Thumbnail" : "Inline"} ·{" "}
+                    {bytesLabel(item.src)}
+                  </div>
+                  <div className="media-posts">
+                    {item.posts.map((post) => (
+                      <Link key={post.id} to={`/admin/blogs/edit/${post.id}`}>
+                        {post.title}
+                      </Link>
+                    ))}
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h3>No media found.</h3>
+            <p>
+              Upload a thumbnail or an inline image while writing a post and it
+              will appear here.
+            </p>
+            <Link className="btn btn-primary" to="/admin/blogs/create">
+              Create Post
+            </Link>
+          </div>
+        )}
+      </section>
     </AdminLayout>
   );
 }
