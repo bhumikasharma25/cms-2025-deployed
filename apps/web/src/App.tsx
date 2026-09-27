@@ -6,7 +6,10 @@ import {
 } from "react-router-dom";
 
 import Home from "./pages/Home";
-import Placeholder from "./pages/Placeholder";
+import BlogList from "./pages/BlogList";
+import BlogDetails from "./pages/BlogDetails";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
 import Media from "./pages/admin/Media";
@@ -26,22 +29,10 @@ function App() {
 
         {/* Public pages — accessible to everyone, no login required */}
         <Route path="/" element={<Home />} />
-        <Route
-          path="/blogs"
-          element={<Placeholder title="All Blogs" />}
-        />
-        <Route
-          path="/about"
-          element={<Placeholder title="About" />}
-        />
-        <Route
-          path="/contact"
-          element={<Placeholder title="Contact" />}
-        />
-        <Route
-          path="/blog/:slug"
-          element={<Placeholder title="Blog Details" />}
-        />
+        <Route path="/blogs" element={<BlogList />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/blog/:slug" element={<BlogDetails />} />
 
         {/* Admin Authentication */}
         <Route path="/admin/login" element={<Login />} />

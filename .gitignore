@@ -11,3 +11,6 @@ server/dist
 public/dist
 Blog CMS 2025 Batch.md
 UI/
+
+# Local-only mock backend (dev fixture, never deployed)
+mock-api/
