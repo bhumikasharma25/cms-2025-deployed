@@ -10,3 +10,7 @@ dist-ssr
 server/dist
 public/dist
 Blog CMS 2025 Batch.md
+UI/
+
+# Local admin seed script
+apps/backend/src/scripts/createAdmin.ts
