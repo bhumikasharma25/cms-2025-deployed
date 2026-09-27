@@ -21,13 +21,23 @@ export interface AdminIdentity {
   initials: string;
 }
 
-const FALLBACK: AdminIdentity = {
-  name: "Admin",
-  email: "",
-  initials: "A",
+/** Identity from cache, used as the context default and as a safety net. */
+const cachedIdentity = (): AdminIdentity => {
+  const name = getAdminName();
+  return {
+    name,
+    email: getAdminEmail(),
+    initials: authorInitials(name),
+  };
 };
 
-const AdminContext = createContext<AdminIdentity>(FALLBACK);
+/**
+ * `null` means "no provider above me". The admin pages render `<AdminLayout>`,
+ * which used to mount the provider itself, so a page calling `useAdmin()`
+ * sat *above* it and silently received the default. The provider now lives at
+ * the route level, and this default keeps any stray consumer correct.
+ */
+const AdminContext = createContext<AdminIdentity | null>(null);
 
 /**
  * Resolves the signed-in admin once per mount.
@@ -39,14 +49,7 @@ const AdminContext = createContext<AdminIdentity>(FALLBACK);
  * to a generic "Admin" rather than a hardcoded person.
  */
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [identity, setIdentity] = useState<AdminIdentity>(() => {
-    const name = getAdminName();
-    return {
-      name,
-      email: getAdminEmail(),
-      initials: authorInitials(name),
-    };
-  });
+  const [identity, setIdentity] = useState<AdminIdentity>(cachedIdentity);
 
   const resolve = useCallback(async () => {
     if (!hasToken()) return;
@@ -78,4 +81,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
 }
 
-export const useAdmin = () => useContext(AdminContext);
+export const useAdmin = (): AdminIdentity => {
+  const fromProvider = useContext(AdminContext);
+  const cached = useMemo(cachedIdentity, []);
+  return fromProvider ?? cached;
+};

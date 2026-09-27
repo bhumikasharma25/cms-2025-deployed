@@ -8,6 +8,7 @@ import Color from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import FontFamily from "@tiptap/extension-font-family";
 import { fileToDataUri } from "../../utils/image";
+import { downloadText, htmlToMarkdown } from "../../utils/markdown";
 
 /**
  * `TextStyle` ships no `fontSize` attribute, so `setMark("textStyle", …)`
@@ -118,6 +119,8 @@ interface TextEditorProps {
   onChange: (html: string) => void;
   /** Called after a `.md` file is parsed, so the page can react (e.g. title). */
   onMarkdownLoaded?: (markdown: string) => void;
+  /** Base name for the exported file. */
+  exportName?: string;
   error?: string;
 }
 
@@ -125,10 +128,13 @@ export default function TextEditor({
   value,
   onChange,
   onMarkdownLoaded,
+  exportName = "post",
   error,
 }: TextEditorProps) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [stickerOpen, setStickerOpen] = useState(false);
+  const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  const stickerBtnRef = useRef<HTMLButtonElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -247,6 +253,36 @@ export default function TextEditor({
         ],
       })
       .run();
+  };
+
+  /**
+   * Closing either panel returns focus to the button that opened it, so
+   * keyboard users are not dropped back at the top of the document.
+   */
+  const closeEmoji = (ref: React.RefObject<HTMLButtonElement | null>) => {
+    setEmojiOpen(false);
+    setStickerOpen(false);
+    ref.current?.focus();
+  };
+
+  // Escape closes whichever panel is open, from anywhere in the editor.
+  useEffect(() => {
+    if (!emojiOpen && !stickerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (emojiOpen) closeEmoji(emojiBtnRef);
+      else closeEmoji(stickerBtnRef);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [emojiOpen, stickerOpen]);
+
+  /** PRD §66 "Markdown Export" — download the article as a .md file. */
+  const onExport = () => {
+    if (!value.trim()) return;
+    const markdown = htmlToMarkdown(value);
+    const name = exportName.trim() || "post";
+    downloadText(`${name}.md`, `# ${name}\n\n${markdown}\n`);
   };
 
   if (!editor) {
@@ -500,16 +536,30 @@ export default function TextEditor({
 
         <button
           type="button"
+          ref={emojiBtnRef}
           className="editor-btn"
           title="Insert emoji"
           aria-label="Insert emoji"
           aria-expanded={emojiOpen}
-          onClick={() => setEmojiOpen((o) => !o)}
+          onClick={() => {
+            setStickerOpen(false);
+            setEmojiOpen((o) => !o);
+          }}
         >
           😀
         </button>
         {emojiOpen && (
-          <div className="emoji-picker" role="menu" aria-label="Emoji">
+          <div
+            className="emoji-picker"
+            role="menu"
+            aria-label="Emoji"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                closeEmoji(emojiBtnRef);
+              }
+            }}
+          >
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
@@ -517,7 +567,7 @@ export default function TextEditor({
                 role="menuitem"
                 onClick={() => {
                   editor.chain().focus().insertContent(emoji).run();
-                  setEmojiOpen(false);
+                  closeEmoji(emojiBtnRef);
                 }}
               >
                 {emoji}
@@ -530,16 +580,30 @@ export default function TextEditor({
 
         <button
           type="button"
+          ref={stickerBtnRef}
           className="editor-btn"
           title="Insert sticker"
           aria-label="Insert sticker"
           aria-expanded={stickerOpen}
-          onClick={() => setStickerOpen((o) => !o)}
+          onClick={() => {
+            setEmojiOpen(false);
+            setStickerOpen((o) => !o);
+          }}
         >
           ⭐
         </button>
         {stickerOpen && (
-          <div className="emoji-picker" role="menu" aria-label="Stickers">
+          <div
+            className="emoji-picker"
+            role="menu"
+            aria-label="Stickers"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                closeEmoji(stickerBtnRef);
+              }
+            }}
+          >
             {STICKERS.map((sticker) => (
               <button
                 key={sticker.label}
@@ -553,7 +617,7 @@ export default function TextEditor({
                     .focus()
                     .setImage({ src: svgToDataUri(sticker.svg) })
                     .run();
-                  setStickerOpen(false);
+                  closeEmoji(stickerBtnRef);
                 }}
               >
                 <img src={svgToDataUri(sticker.svg)} alt="" width={22} height={22} />
@@ -605,6 +669,15 @@ export default function TextEditor({
           onClick={() => fileRef.current?.click()}
         >
           Upload Markdown (.md)
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          disabled={!value.trim()}
+          title="Download this content as a .md file"
+          onClick={onExport}
+        >
+          Export .md
         </button>
         <span className="editor-hint">
           Uploading replaces the editor content. You can keep editing after.

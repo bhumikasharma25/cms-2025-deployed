@@ -2,9 +2,20 @@
   --primary: #8b2151;
   --primary-dark: #6f1a41;
   --primary-deep: #7a1c45;
+  /*
+   * Surfaces that carry white text (buttons, active nav, logo). Kept separate
+   * from --primary because in dark mode the text token has to be *lighter* for
+   * links on a dark background, which would break white text on that surface.
+   */
+  --primary-solid: #8b2151;
+  --primary-solid-hover: #6f1a41;
   --ink: #18181b;
-  --muted: #6b7280;
-  --muted-light: #9ca3af;
+  /* Slightly darker than #6b7280 so muted text also clears 4.5:1 on the
+     tinted selected-table row, not just on white. */
+  --muted: #666d79;
+  /* Was #9ca3af, which only reached 2.5:1 on white — too low for the footer
+     copyright and card meta text that use this token. */
+  --muted-light: #666d79;
   --border: #e5e7eb;
   --page-bg: #f7f7f8;
   --card-bg: #ffffff;
@@ -101,7 +112,7 @@ input:focus-visible {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   display: flex;
   align-items: center;
@@ -154,7 +165,7 @@ input:focus-visible {
 }
 
 .btn-subscribe {
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -164,7 +175,7 @@ input:focus-visible {
 }
 
 .btn-subscribe:hover {
-  background: var(--primary-dark);
+  background: var(--primary-solid-hover);
 }
 
 .nav-search {
@@ -254,7 +265,7 @@ input:focus-visible {
 
 .badge {
   display: inline-block;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -502,7 +513,7 @@ input:focus-visible {
 }
 
 .chip.active {
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
 }
 
@@ -532,7 +543,7 @@ input:focus-visible {
 }
 
 .newsletter-card {
-  background: var(--primary-deep);
+  background: var(--primary-solid-hover);
   border-radius: 14px;
   padding: 56px 32px;
   text-align: center;
@@ -680,7 +691,7 @@ input:focus-visible {
 }
 
 .btn-join {
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -690,7 +701,7 @@ input:focus-visible {
 }
 
 .btn-join:hover {
-  background: var(--primary-dark);
+  background: var(--primary-solid-hover);
 }
 
 .digest-msg {
