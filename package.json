@@ -5,10 +5,10 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "mock-api": "node mock-api/server.mjs"
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "eslint": "10.9.1",
     "prettier": "3.9.6",
     "turbo": "^2.11.3"
@@ -20,5 +20,8 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3"
+  }
 }
