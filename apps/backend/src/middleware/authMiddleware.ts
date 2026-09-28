@@ -10,13 +10,22 @@ export const authMiddleware = (req:Request,res:Response,next:NextFunction)=>{
     message: "Authorization token required",
   });
 };
-  const token = authHeader.split(" ")[1];
+
+const [scheme, token] = authHeader.split(" ");
+
+if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid authorization format. Use Bearer <token>",
+    });
+  }
 
   try {
   const decoded = jwt.verify(
     token,
     process.env.JWT_SECRET!
-  );
+  ) as { id: string };
+  req.adminId = decoded.id;
 
   console.log("Authenticated admin:", decoded);
 

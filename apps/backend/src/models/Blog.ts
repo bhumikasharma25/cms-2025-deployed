@@ -15,7 +15,8 @@ const blogSchema = new Schema<IBlog>(
         title: {
             type: String,
             required: true,
-            trim: true
+            trim: true,
+            minlength: 5,
         },
         slug: {
             type: String,
@@ -30,11 +31,11 @@ const blogSchema = new Schema<IBlog>(
         },
         content: {
             type: String,
+            required: true,
             trim: true
         },
         thumbnail:{
             type: String,
-            required: true
         },
         category:{
             type: String,

@@ -16,10 +16,24 @@ export const createCategory = async (req: Request, res: Response) => {
 
   if (!name || !slug) {
     return res.status(400).json({
-      success: false,
-      message: "Name and slug are required",
+        success: false,
+        message: "Name and slug are required",
     });
-  }
+}
+
+if (name.trim().length < 2) {
+    return res.status(400).json({
+        success: false,
+        message: "Category name must be at least 2 characters",
+    });
+}
+
+if (slug.trim().length < 2) {
+    return res.status(400).json({
+        success: false,
+        message: "Category slug must be at least 2 characters",
+    });
+}
 
   const existingCategory = await Category.findOne({
     $or: [{ name }, { slug }],
