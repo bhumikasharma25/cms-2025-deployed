@@ -9,6 +9,8 @@ dist-ssr
 .cache
 server/dist
 public/dist
+Blog CMS 2025 Batch.md
+UI/
 
 # Local admin seed script
 apps/backend/src/scripts/createAdmin.ts
