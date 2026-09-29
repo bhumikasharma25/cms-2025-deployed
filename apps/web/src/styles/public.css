@@ -537,74 +537,11 @@ input:focus-visible {
   color: var(--muted);
 }
 
-/* ============ Newsletter ============ */
-.newsletter {
-  padding-top: 56px;
-}
-
-.newsletter-card {
-  background: var(--primary-solid-hover);
-  border-radius: 14px;
-  padding: 56px 32px;
-  text-align: center;
-}
-
-.newsletter-card h2 {
-  color: #fff;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 12px;
-}
-
-.newsletter-card p {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 15px;
-  margin-bottom: 26px;
-}
-
-.newsletter-form {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.newsletter-form input {
-  border: none;
-  border-radius: 8px;
-  padding: 13px 16px;
-  font-size: 14px;
-  width: 320px;
-  max-width: 100%;
-  font-family: inherit;
-  background: #fff;
-  color: var(--ink);
-}
-
-.newsletter-form input:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-}
-
-.btn-dark {
-  background: #2d2d34;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 13px 26px;
-  border-radius: 8px;
-  transition: background 0.15s;
-}
-
-.btn-dark:hover {
-  background: #17171a;
-}
-
 .form-msg {
   margin-top: 14px;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--ink);
 }
 
 .form-msg.error {
@@ -851,13 +788,6 @@ input:focus-visible {
     font-size: 22px;
   }
 
-  .newsletter-card {
-    padding: 40px 22px;
-  }
-
-  .newsletter-card h2 {
-    font-size: 24px;
-  }
 }
 
 @media (max-width: 560px) {
@@ -875,14 +805,52 @@ input:focus-visible {
     text-align: center;
   }
 
-  .newsletter-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
+}
 
-  .newsletter-form input {
-    width: 100%;
-  }
+/* ---------- Pagination (shared by admin + public) ---------- */
+.pagination {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.page-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--muted-light);
+  color: var(--ink);
+}
+
+.page-btn.active {
+  background: var(--primary-solid);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Public listing renders the pager as a <nav>; admin keeps a <div> inside its
+   flex .table-foot, which already handles alignment. */
+nav.pagination {
+  justify-content: center;
+  margin-top: 20px;
 }
 
 /* ---------- Blog listing ---------- */

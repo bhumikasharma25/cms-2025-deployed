@@ -4,7 +4,6 @@ import Navbar from "../components/public/Navbar";
 import BlogCard from "../components/public/BlogCard";
 import ArticleBody from "../components/public/ArticleBody";
 import ShareRow from "../components/public/ShareRow";
-import NewsletterSection from "../components/public/NewsletterSection";
 import Footer from "../components/public/Footer";
 import { usePublicBlogs } from "../hooks/usePublicBlogs";
 
@@ -101,7 +100,6 @@ export default function BlogDetails() {
         </div>
       </main>
 
-      <NewsletterSection />
       <Footer />
     </>
   );

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/public/Navbar";
 import FeaturedHero from "../components/public/FeaturedHero";
 import BlogCard from "../components/public/BlogCard";
-import NewsletterSection from "../components/public/NewsletterSection";
 import Footer from "../components/public/Footer";
 import { categoriesOf, usePublicBlogs } from "../hooks/usePublicBlogs";
 
@@ -124,7 +123,6 @@ export default function Home() {
         </section>
       )}
 
-      <NewsletterSection />
       <Footer />
     </>
   );

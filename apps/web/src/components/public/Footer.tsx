@@ -1,15 +1,13 @@
 import { useState } from "react";
-import type { FormEvent, MouseEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import Logo from "./Logo";
-import { goToSection } from "../../utils/navigation";
 
 const isValidEmail = (value: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 const quickLinks = [
   { label: "All Articles", to: "/blogs" },
-  { label: "Weekly Newsletter", to: "/", section: "newsletter" },
   { label: "Contributor Program", to: "/about" },
   { label: "Editorial Guidelines", to: "/about" },
 ];
@@ -26,8 +24,6 @@ export default function Footer() {
   const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(
     null
   );
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -38,9 +34,6 @@ export default function Footer() {
     setMsg({ text: "You're on the list. Welcome aboard!", error: false });
     setEmail("");
   };
-
-  const onNewsletter = (e: MouseEvent) =>
-    goToSection(e, "newsletter", pathname, navigate);
 
   return (
     <footer className="footer">
@@ -57,19 +50,11 @@ export default function Footer() {
           <div>
             <h4>Quick Links</h4>
             <ul>
-              {quickLinks.map((link) =>
-                link.section ? (
-                  <li key={link.label}>
-                    <a href={`/#${link.section}`} onClick={onNewsletter}>
-                      {link.label}
-                    </a>
-                  </li>
-                ) : (
-                  <li key={link.label}>
-                    <Link to={link.to}>{link.label}</Link>
-                  </li>
-                )
-              )}
+              {quickLinks.map((link) => (
+                <li key={link.label}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
             </ul>
           </div>
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/public/Navbar";
 import BlogCard from "../components/public/BlogCard";
-import NewsletterSection from "../components/public/NewsletterSection";
 import Footer from "../components/public/Footer";
 import { categoriesOf, usePublicBlogs } from "../hooks/usePublicBlogs";
 
@@ -14,11 +13,15 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: "az", label: "A–Z" },
 ];
 
+/** PRD §59 — two full rows of the 3-up grid. */
+const PAGE_SIZE = 6;
+
 export default function BlogList() {
   const { data, loading, error, refetch } = usePublicBlogs();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("latest");
+  const [page, setPage] = useState(1);
 
   // Tag links from the article page deep-link into a filtered listing.
   const tag = params.get("tag") ?? "";
@@ -56,6 +59,17 @@ export default function BlogList() {
       return sort === "oldest" ? at - bt : bt - at;
     });
   }, [posts, q, category, tag, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Clamp rather than trust `page`: narrowing a filter can strand the user on a
+  // page that no longer exists.
+  const current = Math.min(page, totalPages);
+  const visible = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+
+  // Any change to search, category, tag or sort restarts at page 1.
+  useEffect(() => {
+    setPage(1);
+  }, [q, category, tag, sort]);
 
   const setCategory = (name: string) => {
     const next = new URLSearchParams(params);
@@ -147,13 +161,48 @@ export default function BlogList() {
           ) : filtered.length > 0 ? (
             <>
               <div className="posts-grid">
-                {filtered.map((post) => (
+                {visible.map((post) => (
                   <BlogCard key={post.id} post={post} />
                 ))}
               </div>
+
               <p className="result-count">
-                Showing {filtered.length} of {posts.length} published blogs
+                Showing {visible.length} of {filtered.length} published blogs
               </p>
+
+              {totalPages > 1 && (
+                <nav className="pagination" aria-label="Blog list pages">
+                  <button
+                    type="button"
+                    className="page-btn"
+                    disabled={current === 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={`page-btn${n === current ? " active" : ""}`}
+                        aria-current={n === current ? "page" : undefined}
+                        onClick={() => setPage(n)}
+                      >
+                        {n}
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="page-btn"
+                    disabled={current === totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </button>
+                </nav>
+              )}
             </>
           ) : (
             <div className="empty-state">
@@ -164,7 +213,6 @@ export default function BlogList() {
         </div>
       </main>
 
-      <NewsletterSection />
       <Footer />
     </>
   );

@@ -6,6 +6,11 @@ import TextEditor from "../../components/admin/TextEditor";
 import ArticleBody from "../../components/public/ArticleBody";
 import { useToast } from "../../components/admin/Toast";
 import { errorMessage } from "../../hooks/useApi";
+import {
+  clearAutosave,
+  useAutosave,
+  type AutosavedDraft,
+} from "../../hooks/useAutosave";
 import { ApiError, blogsApi, categoriesApi } from "../../services/api";
 import { useAdmin } from "../../hooks/useAdmin";
 import type { Blog, BlogStatus, Category } from "../../types/blog";
@@ -81,6 +86,9 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
   const [confirmTrash, setConfirmTrash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // PRD §66 — set once the admin actually edits a field, so the copy loaded
+  // from the server is never mistaken for unsaved work.
+  const [touched, setTouched] = useState(false);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { show, node } = useToast();
@@ -128,6 +136,45 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
 
   const slug = useMemo(() => slugify(form.title), [form.title]);
 
+  // PRD §66 — a localStorage mirror of the form, so a refresh, a crash or a
+  // stray back-navigation cannot lose a half-written article.
+  const draftForm = useMemo<Record<string, string>>(
+    () => ({ ...form }),
+    [form]
+  );
+
+  const onRestore = (draft: AutosavedDraft) => {
+    const saved = draft.form;
+    setForm((prev) => ({
+      ...prev,
+      title: saved.title ?? "",
+      description: saved.description ?? "",
+      content: saved.content ?? "",
+      thumbnail: saved.thumbnail ?? "",
+      category: saved.category ?? prev.category,
+      tags: saved.tags ?? "",
+      status: saved.status === "published" ? "published" : "draft",
+    }));
+    setErrors({});
+    setTouched(true);
+    show("Draft restored.");
+  };
+
+  const onDiscard = () => {
+    setErrors({});
+    // Create mode starts blank again. Edit mode keeps the post it already has
+    // from the server — blanking it would throw away valid content.
+    if (mode === "create")
+      setForm((prev) => ({ ...emptyState, category: prev.category }));
+  };
+
+  const { savedAt, recovered, restore, discard } = useAutosave(
+    draftForm,
+    touched && !loading,
+    onRestore,
+    onDiscard
+  );
+
   /** Unsaved state shaped like a Blog so the preview can render it. */
   const previewPost: Blog = {
     id: id ?? "preview",
@@ -150,6 +197,7 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
   const set = <K extends keyof EditorState>(key: K, value: EditorState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setTouched(true);
   };
 
   const validate = (status: BlogStatus) => {
@@ -202,9 +250,12 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
         show(
           status === "published"
             ? "Post published successfully."
-            : "Draft saved successfully."
+              : "Draft saved successfully."
         );
       }
+      // The work is on the server now — the local copy would only offer to
+      // "restore" it on the next visit.
+      clearAutosave();
       navigate("/admin/blogs");
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -291,6 +342,35 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
       {formError && (
         <div className="alert error" role="alert">
           {formError}
+        </div>
+      )}
+
+      {recovered && (
+        <div className="alert info" role="status">
+          <span>
+            Unsaved draft from{" "}
+            {new Date(recovered.at).toLocaleString([], {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}{" "}
+            was found on this device.
+          </span>
+          <span className="alert-actions">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={restore}
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              className="btn btn-soft btn-sm"
+              onClick={discard}
+            >
+              Discard
+            </button>
+          </span>
         </div>
       )}
 
@@ -440,6 +520,16 @@ export default function BlogForm({ mode, id }: BlogFormProps) {
               {createdAt ? formatDate(createdAt) : "Immediately"}
             </span>
           </div>
+
+          {savedAt && (
+            <p className="autosave-note">
+              Draft saved{" "}
+              {new Date(savedAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          )}
 
           <div className="publish-actions">
             <button

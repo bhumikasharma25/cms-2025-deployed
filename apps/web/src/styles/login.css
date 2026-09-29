@@ -91,6 +91,9 @@
 .login-input {
   width: 100%;
   height: 40px;
+  /* No global reset in this codebase, and `width: 100%` plus horizontal
+     padding would overflow the field without border-box sizing. */
+  box-sizing: border-box;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0 12px;
@@ -114,11 +117,16 @@
   border-color: #ef4444;
 }
 
+/* Flex so the wrapper is exactly as tall as the input. A plain block wrapper
+   adds the inline-block input's descender gap underneath, which would make the
+   eye's `top: 50%` land below the field's true centre. */
 .login-password {
   position: relative;
+  display: flex;
 }
 
 .login-password .login-input {
+  /* Room for the eye, which now sits inside the field's border. */
   padding-right: 44px;
 }
 
@@ -130,6 +138,9 @@
   border-color: #ef4444;
 }
 
+/* Absolutely positioned so it renders inside the field's own border box.
+   The wrapper is a flex container (above), so `top: 50%` is measured against a
+   box exactly as tall as the input and the eye stays centred. */
 .login-eye {
   position: absolute;
   top: 50%;
@@ -140,6 +151,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
   border-radius: 6px;
   color: var(--muted-light);
   transition: color 0.15s, background 0.15s;
@@ -270,50 +285,6 @@
 @media (min-width: 1024px) {
   .login-title {
     margin-top: 16px;
-  }
-
-  .login-password {
-    height: 54px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0 12px;
-    background: #fff;
-  }
-
-  .login-password .login-input {
-    height: 40px;
-    padding-right: 0;
-    border: none;
-    border-radius: 0;
-  }
-
-  .login-password .login-input:focus {
-    outline: none;
-  }
-
-  .login-password:focus-within {
-    outline: 2px solid var(--primary);
-    outline-offset: 1px;
-    border-color: var(--primary);
-  }
-
-  .login-password.has-error,
-  .login-password.has-error .login-input {
-    border-color: #ef4444;
-  }
-
-  .login-eye {
-    left: 14px;
-    right: auto;
-    top: auto;
-    bottom: 6px;
-    transform: none;
-    width: 20px;
-    height: 20px;
-  }
-
-  .login-eye:hover {
-    background: none;
   }
 
   .login-row {
