@@ -1,14 +1,18 @@
-.DS_Store
-node_modules
-.turbo
+node_modules/
+.turbo/
+dist/
+dist-ssr/
 *.log
-dist
-dist-ssr
 *.local
 .env
-.cache
-server/dist
-public/dist
+.env.*
+!.env.example
+.cache/
+.DS_Store
+
+server/dist/
+public/dist/
+
 Blog CMS 2025 Batch.md
 UI/
 
