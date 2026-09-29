@@ -7,6 +7,18 @@ export interface AutosavedDraft {
   form: Record<string, string>;
 }
 
+/**
+ * Drop the stored draft without touching the form. Called after a successful
+ * save — the work now lives on the server, so the local copy must go.
+ */
+export function clearAutosave() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
+}
+
 const read = (): AutosavedDraft | null => {
   try {
     const raw = localStorage.getItem(KEY);

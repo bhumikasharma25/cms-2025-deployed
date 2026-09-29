@@ -149,9 +149,9 @@ export default function Navbar({ query, onQueryChange }: NavbarProps) {
             )}
           </button>
 
-          <button className="btn-subscribe" onClick={onSection("newsletter")}>
-            Subscribe
-          </button>
+          <Link className="btn-subscribe" to="/admin/login">
+            Login
+          </Link>
 
           <button
             className="hamburger"
@@ -247,15 +247,13 @@ export default function Navbar({ query, onQueryChange }: NavbarProps) {
             />
           </div>
 
-          <button
+          <Link
             className="btn-subscribe"
-            onClick={(e) => {
-              onSection("newsletter")(e);
-              closeMenu();
-            }}
+            to="/admin/login"
+            onClick={closeMenu}
           >
-            Subscribe
-          </button>
+            Login
+          </Link>
         </div>
       )}
     </header>

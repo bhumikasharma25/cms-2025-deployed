@@ -88,7 +88,6 @@
  * `background-color`, not the `background` shorthand: the shorthand would reset
  * background-image/repeat/position and make the select chevrons tile.
  */
-:root[data-theme="dark"] .newsletter-form input,
 :root[data-theme="dark"] .digest-form input,
 :root[data-theme="dark"] .admin-header,
 :root[data-theme="dark"] .select,
